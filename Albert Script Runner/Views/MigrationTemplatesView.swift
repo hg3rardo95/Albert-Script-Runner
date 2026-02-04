@@ -11,19 +11,10 @@ struct MigrationTemplatesView: View {
 
     @StateObject private var vm = MigrationTrackerViewModel()
 
-    // MVP: toggles that map directly to the Python extract script options
-    @State private var includeParameterGroups: Bool = false
-    @State private var includeDataTemplates: Bool = false
+    @Binding var inputs: MigrationTemplateInputs
 
     // Templates are grouped (expandable) with per-type toggles.
-    @State private var includeTemplates: Bool = false
     @State private var templatesExpanded: Bool = false
-
-    @State private var includeBatchTaskTemplates: Bool = false
-    @State private var includePropertyTaskTemplates: Bool = false
-    @State private var includeNotebookTemplates: Bool = false
-    @State private var includeGeneralTaskTemplates: Bool = false
-    @State private var includeSheetTemplates: Bool = false
 
     @State private var templates: [CustomTemplateEntity] = []
     @State private var isLoading: Bool = false
@@ -43,21 +34,21 @@ struct MigrationTemplatesView: View {
         .background(.thinMaterial)
         .cornerRadius(10)
         .task { await reloadTemplates() }
-        .onChange(of: includeTemplates) { _, newValue in
+        .onChange(of: inputs.includeTemplates) { _, newValue in
             // If templates are disabled, disable all subtypes.
             if !newValue {
-                includeBatchTaskTemplates = false
-                includePropertyTaskTemplates = false
-                includeNotebookTemplates = false
-                includeGeneralTaskTemplates = false
-                includeSheetTemplates = false
+                inputs.includeBatchTaskTemplates = false
+                inputs.includePropertyTaskTemplates = false
+                inputs.includeNotebookTemplates = false
+                inputs.includeGeneralTaskTemplates = false
+                inputs.includeSheetTemplates = false
             }
         }
-        .onChange(of: includeBatchTaskTemplates) { _, _ in includeTemplates = anyTemplateTypeSelected }
-        .onChange(of: includePropertyTaskTemplates) { _, _ in includeTemplates = anyTemplateTypeSelected }
-        .onChange(of: includeNotebookTemplates) { _, _ in includeTemplates = anyTemplateTypeSelected }
-        .onChange(of: includeGeneralTaskTemplates) { _, _ in includeTemplates = anyTemplateTypeSelected }
-        .onChange(of: includeSheetTemplates) { _, _ in includeTemplates = anyTemplateTypeSelected }
+        .onChange(of: inputs.includeBatchTaskTemplates) { _, _ in inputs.includeTemplates = anyTemplateTypeSelected }
+        .onChange(of: inputs.includePropertyTaskTemplates) { _, _ in inputs.includeTemplates = anyTemplateTypeSelected }
+        .onChange(of: inputs.includeNotebookTemplates) { _, _ in inputs.includeTemplates = anyTemplateTypeSelected }
+        .onChange(of: inputs.includeGeneralTaskTemplates) { _, _ in inputs.includeTemplates = anyTemplateTypeSelected }
+        .onChange(of: inputs.includeSheetTemplates) { _, _ in inputs.includeTemplates = anyTemplateTypeSelected }
         // Removed onChange handlers for vm.selectedTemplateKind, vm.prefixFilter, vm.tagFilterCSV
         // .onAppear removed: no configure method in vm
     }
@@ -77,16 +68,10 @@ struct MigrationTemplatesView: View {
 
             Spacer()
 
-            HStack(spacing: 8) {
-                Button("Download Templates") {
-                    downloadTemplateTracker()
-                }
-
-                Button("Reload") {
-                    Task { await reloadTemplates() }
-                }
-                .keyboardShortcut("r", modifiers: [.command])
+            Button("Reload") {
+                Task { await reloadTemplates() }
             }
+            .keyboardShortcut("r", modifiers: [.command])
         }
     }
 
@@ -113,12 +98,12 @@ struct MigrationTemplatesView: View {
                     // Right-justified core toggles
                     HStack {
                         Spacer()
-                        filterToggle("Parameter Groups (PGs)", isOn: $includeParameterGroups)
+                        filterRow("Parameter Groups (PGs)", isOn: $inputs.includeParameterGroups, filters: $inputs.pgFilters, showTags: true)
                     }
 
                     HStack {
                         Spacer()
-                        filterToggle("Data Templates (DTs)", isOn: $includeDataTemplates)
+                        filterRow("Data Templates (DTs)", isOn: $inputs.includeDataTemplates, filters: $inputs.dtFilters, showTags: true)
                     }
 
                     // Custom Templates pill: compact, right-aligned, content-hugging
@@ -156,15 +141,15 @@ struct MigrationTemplatesView: View {
                         if templatesExpanded {
                             VStack(alignment: .leading, spacing: 10) {
                                 // Subtype toggles (content-hugging; no inner spacers)
-                                filterToggle("Batch Task Templates", isOn: $includeBatchTaskTemplates)
+                                filterRow("Batch Task Templates", isOn: $inputs.includeBatchTaskTemplates, filters: $inputs.batchFilters, showTags: false)
 
-                                filterToggle("Property Task Templates", isOn: $includePropertyTaskTemplates)
+                                filterRow("Property Task Templates", isOn: $inputs.includePropertyTaskTemplates, filters: $inputs.propertyFilters, showTags: false)
 
-                                filterToggle("Notebook Templates", isOn: $includeNotebookTemplates)
+                                filterRow("Notebook Templates", isOn: $inputs.includeNotebookTemplates, filters: $inputs.notebookFilters, showTags: false)
 
-                                filterToggle("General Task Templates", isOn: $includeGeneralTaskTemplates)
+                                filterRow("General Task Templates", isOn: $inputs.includeGeneralTaskTemplates, filters: $inputs.generalFilters, showTags: false)
 
-                                filterToggle("Sheet Templates", isOn: $includeSheetTemplates)
+                                filterRow("Sheet Templates", isOn: $inputs.includeSheetTemplates, filters: $inputs.sheetFilters, showTags: false)
                             }
                             .padding(.horizontal, 12)
                             .padding(.bottom, 12)
@@ -286,30 +271,80 @@ struct MigrationTemplatesView: View {
     }
 
     private var anyTemplateTypeSelected: Bool {
-        includeBatchTaskTemplates ||
-        includePropertyTaskTemplates ||
-        includeNotebookTemplates ||
-        includeGeneralTaskTemplates ||
-        includeSheetTemplates
+        inputs.includeBatchTaskTemplates ||
+        inputs.includePropertyTaskTemplates ||
+        inputs.includeNotebookTemplates ||
+        inputs.includeGeneralTaskTemplates ||
+        inputs.includeSheetTemplates
     }
 
     private var selectedTemplatesCount: Int {
-        [includeBatchTaskTemplates,
-         includePropertyTaskTemplates,
-         includeNotebookTemplates,
-         includeGeneralTaskTemplates,
-         includeSheetTemplates].filter { $0 }.count
+        [inputs.includeBatchTaskTemplates,
+         inputs.includePropertyTaskTemplates,
+         inputs.includeNotebookTemplates,
+         inputs.includeGeneralTaskTemplates,
+         inputs.includeSheetTemplates].filter { $0 }.count
     }
 
     private var pillCornerRadius: CGFloat { templatesExpanded ? 16 : 999 }
+    private var prefixFieldWidth: CGFloat { 140 }
+    private var tagsFieldWidth: CGFloat { 220 }
 
     // MARK: - Actions
+
+    private func filterRow(
+        _ title: String,
+        isOn: Binding<Bool>,
+        filters: Binding<MigrationTemplateFilterInputs>,
+        showTags: Bool
+    ) -> some View {
+        HStack(alignment: .center, spacing: 8) {
+            filterToggle(title, isOn: isOn)
+
+            if isOn.wrappedValue {
+                HStack(spacing: 8) {
+                    TextField("Prefix", text: filters.prefix)
+                        .textFieldStyle(.roundedBorder)
+                        .controlSize(.small)
+                        .font(.callout)
+                        .frame(width: prefixFieldWidth)
+
+                    if showTags {
+                        TextField("Tags", text: tagsTextBinding(filters))
+                            .textFieldStyle(.roundedBorder)
+                            .controlSize(.small)
+                            .font(.callout)
+                            .frame(width: tagsFieldWidth)
+                    }
+                }
+                .transition(.move(edge: .trailing).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.5), value: isOn.wrappedValue)
+    }
 
     private func filterToggle(_ title: String, isOn: Binding<Bool>) -> some View {
         Toggle(title, isOn: isOn)
             .toggleStyle(.switch)
             .controlSize(.small)
             .font(.callout)
+    }
+
+    private func tagsTextBinding(_ filters: Binding<MigrationTemplateFilterInputs>) -> Binding<String> {
+        Binding(
+            get: { filters.wrappedValue.tagsText },
+            set: { newValue in
+                filters.wrappedValue.tagsText = newValue
+                filters.wrappedValue.tags = parseTagCSV(newValue)
+            }
+        )
+    }
+
+    private func parseTagCSV(_ csv: String) -> [String] {
+        csv
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
     }
 
     private func reloadTemplates() async {
@@ -325,62 +360,6 @@ struct MigrationTemplatesView: View {
         }
     }
 
-    private func downloadTemplateTracker() {
-        vm.lastErrorMessage = nil
-
-        // Use a small unique suffix so repeated clicks won't collide with uniqueKey constraints.
-        let suffix = String(Int(Date().timeIntervalSince1970))
-        let env = "sandbox"
-
-        let pg = ParameterGroupEntity(
-            albertId: "PRG\(suffix)",
-            name: "Sample Parameter Group \(suffix)",
-            environment: env,
-            tags: ["SAMPLE"],
-            shouldMigrate: true,
-            migrationCompletedAt: nil,
-            notes: ""
-        )
-
-        let dt = DataTemplateEntity(
-            albertId: "DAT\(suffix)",
-            name: "Sample Data Template \(suffix)",
-            environment: env,
-            tags: ["SAMPLE"],
-            shouldMigrate: true,
-            migrationCompletedAt: nil,
-            notes: ""
-        )
-
-        let ct = CustomTemplateEntity(
-            albertId: "CTP\(suffix)",
-            name: "Sample Template \(suffix)",
-            environment: env,
-            templateKind: "Property Task",
-            tags: ["SAMPLE"],
-            shouldMigrate: true,
-            migrationCompletedAt: nil,
-            notes: ""
-        )
-
-        // Insert nodes
-        modelContext.insert(pg)
-        modelContext.insert(dt)
-        modelContext.insert(ct)
-
-        // Create edges
-        let linkPG = TemplateParameterGroupLinkEntity(template: ct, parameterGroup: pg)
-        let linkDT = TemplateDataTemplateLinkEntity(template: ct, dataTemplate: dt)
-        modelContext.insert(linkPG)
-        modelContext.insert(linkDT)
-
-        do {
-            try modelContext.save()
-            Task { await reloadTemplates() }
-        } catch {
-            vm.lastErrorMessage = "Failed to insert sample data: \(error.localizedDescription)"
-        }
-    }
 }
 
 #Preview {
@@ -395,10 +374,12 @@ struct MigrationTemplatesView: View {
     let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
     let container = try? ModelContainer(for: schema, configurations: [configuration])
 
+    let inputs = MigrationTemplateInputs()
+
     if let container {
-        return MigrationTemplatesView()
+        return MigrationTemplatesView(inputs: .constant(inputs))
             .modelContainer(container)
     } else {
-        return MigrationTemplatesView()
+        return MigrationTemplatesView(inputs: .constant(inputs))
     }
 }

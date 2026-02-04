@@ -70,7 +70,7 @@ extension AppAction {
         case .updateLocations:
             return "Update Locations"
         case .migration:
-            return "Download Migration Data"
+            return "Populate Migration Docs"
         case .listLocations:
             return "Refresh Locations"
         case .none:

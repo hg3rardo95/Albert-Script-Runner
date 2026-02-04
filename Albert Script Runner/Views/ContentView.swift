@@ -21,11 +21,15 @@ struct ContentView: View {
     @State private var showAlert: Bool = false
     @State private var alertTitle: String = ""
     @State private var alertBody: String = ""
+    @State private var showTemplateAlert: Bool = false
+    @State private var templateAlertBody: String = ""
+    @State private var templateDecisionContinuation: CheckedContinuation<TemplateDecision, Never>? = nil
     @State private var isRunning: Bool = false
     @State private var migrationToken: String = ""
     @State private var migrationEnv: Environment = .production
     @State private var migrationBarExpanded: Bool = true
     @State private var migrationBarHovering: Bool = false
+    @State private var migrationInputs = MigrationTemplateInputs()
 
     private var tokenIsFilled: Bool {
         !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -182,6 +186,23 @@ struct ContentView: View {
         } message: {
             Text(alertBody)
         }
+        .alert("Template mismatch", isPresented: $showTemplateAlert) {
+            Button("Cancel", role: .cancel) {
+                templateDecisionContinuation?.resume(returning: .cancel)
+                templateDecisionContinuation = nil
+            }
+            Button("Replace", role: .destructive) {
+                templateDecisionContinuation?.resume(returning: .replace)
+                templateDecisionContinuation = nil
+            }
+        } message: {
+            Text(templateAlertBody)
+        }
+    }
+
+    private enum TemplateDecision {
+        case cancel
+        case replace
     }
 
     // MARK: - UI Sections
@@ -436,7 +457,7 @@ struct ContentView: View {
                     .transition(.opacity)
 
             case .migration:
-                MigrationTemplatesView()
+                MigrationTemplatesView(inputs: $migrationInputs)
                     .glassEffectTransition(.materialize)
                     .transition(.opacity)
 
@@ -581,10 +602,7 @@ struct ContentView: View {
             }
 
         case .migration:
-            showInfo(
-                "Migration (placeholder)",
-                "Migration UI is ready. Next we’ll wire the Python actions using the Source/Destination tokens."
-            )
+            runMigrationTemplateExport(token: t, baseURL: baseURL)
         }
     }
 
@@ -710,6 +728,70 @@ struct ContentView: View {
         }
     }
 
+    private func runMigrationTemplateExport(token: String, baseURL: String) {
+        Task { @MainActor in
+            isRunning = true
+            defer { isRunning = false }
+
+            let saveURL = await SavePanel.show(
+                title: "Save migration templates as…",
+                message: "Choose where to save the Excel file.",
+                defaultFileName: "migration_template_tracker.xlsx",
+                allowedFileExtensions: ["xlsx"]
+            )
+
+            guard let saveURL else { return }
+
+            do {
+                var backupURL: URL? = nil
+                let requiredSheets = MigrationTemplateRunner.requiredSheets(for: migrationInputs)
+
+                if FileManager.default.fileExists(atPath: saveURL.path) {
+                    if !requiredSheets.isEmpty {
+                        let validation = try await MigrationTemplateRunner.validateTemplate(
+                            at: saveURL,
+                            sheets: requiredSheets
+                        )
+
+                        if !validation.ok {
+                            let detail = MigrationTemplateRunner.formatValidationMessage(validation)
+                            let message = """
+The selected file does not match the official migration template.
+
+\(detail)
+
+Replace will back up the existing file and copy the official template into place.
+"""
+                            let decision = await promptTemplateMismatch(message)
+                            if decision == .replace {
+                                backupURL = try MigrationTemplateRunner.replaceWithBundledTemplate(at: saveURL)
+                            } else {
+                                return
+                            }
+                        }
+                    }
+                } else {
+                    try MigrationTemplateRunner.copyBundledTemplate(to: saveURL)
+                }
+
+                let output = try await MigrationTemplateRunner.export(
+                    baseURL: baseURL,
+                    token: token,
+                    inputs: migrationInputs,
+                    outputURL: saveURL
+                )
+
+                let backupLine = backupURL.map { "\n\nBackup:\n\($0.path)" } ?? ""
+                showInfo(
+                    "Migration templates exported",
+                    "Saved to:\n\(saveURL.path)\(backupLine)\n\n\(output)"
+                )
+            } catch {
+                showWarning("Migration export error", error.localizedDescription)
+            }
+        }
+    }
+
     // MARK: - Alerts helpers
 
     private func showWarning(_ title: String, _ body: String) {
@@ -723,9 +805,17 @@ struct ContentView: View {
         alertBody = body
         showAlert = true
     }
+
+    @MainActor
+    private func promptTemplateMismatch(_ message: String) async -> TemplateDecision {
+        await withCheckedContinuation { continuation in
+            templateAlertBody = message
+            templateDecisionContinuation = continuation
+            showTemplateAlert = true
+        }
+    }
 }
 
 #Preview {
     ContentView()
 }
-

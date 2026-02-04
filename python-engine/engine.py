@@ -131,6 +131,36 @@ def _resolve_update_existing_locations_fn():
     )
 
 
+def _resolve_template_tracker_fn():
+    """Resolver for the migration template tracker export helper.
+
+    Supports:
+      - templateTracker.run_template_tracker(base_url, token, config)
+      - templateTracker.runTemplateTracker(base_url, token, config)  (fallback name)
+
+    Returns the callable.
+    """
+
+    try:
+        import templateTracker  # type: ignore
+    except Exception as e:
+        raise RuntimeError(
+            "Unable to import templateTracker.py. Make sure you're running from the python-engine folder and your venv deps are installed. "
+            f"Original error: {e}"
+        )
+
+    if hasattr(templateTracker, "run_template_tracker"):
+        return getattr(templateTracker, "run_template_tracker")
+
+    if hasattr(templateTracker, "runTemplateTracker"):
+        return getattr(templateTracker, "runTemplateTracker")
+
+    raise RuntimeError(
+        "templateTracker.py does not define run_template_tracker(...). "
+        "Please add run_template_tracker(base_url, token, config)."
+    )
+
+
 def cmd_download_users(token: str, base_url: str, out_path: str) -> None:
     """Download all users and write an Excel file."""
 
@@ -249,6 +279,49 @@ def cmd_update_locations(token: str, base_url: str, in_path: str, out_path: str 
         print(payload)
 
 
+def cmd_template_tracker(token: str, base_url: str, config_path: str) -> None:
+    """Generate the migration template tracker Excel output from a JSON config file."""
+
+    in_file = Path(config_path).expanduser().resolve()
+    if not in_file.exists():
+        raise RuntimeError(f"Input file not found: {in_file}")
+
+    raw = in_file.read_text(encoding="utf-8")
+    try:
+        config = json.loads(raw)
+    except Exception as e:
+        raise RuntimeError(f"Unable to parse JSON from --config file: {e}")
+
+    if not isinstance(config, dict):
+        raise RuntimeError("Config JSON must be an object")
+
+    fn = _resolve_template_tracker_fn()
+    out_path = fn(base_url=base_url, token=token, config=config)
+    print(f"OK:WROTE:{out_path}")
+
+
+def cmd_template_tracker_validate(template_path: str, sheets: list[str] | None = None) -> None:
+    """Validate that the Excel template contains required sheets/headers."""
+
+    in_file = Path(template_path).expanduser().resolve()
+    if not in_file.exists():
+        raise RuntimeError(f"Template file not found: {in_file}")
+
+    try:
+        import templateTracker  # type: ignore
+    except Exception as e:
+        raise RuntimeError(
+            "Unable to import templateTracker.py. Make sure you're running from the python-engine folder and your venv deps are installed. "
+            f"Original error: {e}"
+        )
+
+    if not hasattr(templateTracker, "validate_template"):
+        raise RuntimeError("templateTracker.py does not define validate_template(...).")
+
+    result = templateTracker.validate_template(str(in_file), required_sheets=sheets)
+    print(json.dumps(result, ensure_ascii=False))
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="engine.py",
@@ -325,6 +398,37 @@ def build_parser() -> argparse.ArgumentParser:
         help="Optional output .json file path. If provided, writes results JSON to file and prints OK:WROTE:<path>.",
     )
 
+    tt = sub.add_parser(
+        "template-tracker",
+        help="Generate the migration template tracker Excel output (writes to the provided template/output file).",
+    )
+    tt.add_argument("--token", required=True, help="Albert JWT token")
+    tt.add_argument(
+        "--base-url",
+        required=True,
+        help="Albert base URL (e.g., https://sandbox.albertinvent.com)",
+    )
+    tt.add_argument(
+        "--config",
+        required=True,
+        help="Path to JSON config file for template tracker inputs",
+    )
+
+    ttv = sub.add_parser(
+        "template-tracker-validate",
+        help="Validate the migration template tracker Excel file (checks sheets/headers).",
+    )
+    ttv.add_argument(
+        "--template",
+        required=True,
+        help="Path to the template .xlsx file to validate",
+    )
+    ttv.add_argument(
+        "--sheets",
+        required=False,
+        help="Optional comma-separated list of sheet names to validate",
+    )
+
     return parser
 
 
@@ -348,6 +452,18 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "update-locations":
             cmd_update_locations(args.token, args.base_url, args.in_path, getattr(args, "out", None))
+            return 0
+
+        if args.command == "template-tracker":
+            cmd_template_tracker(args.token, args.base_url, args.config)
+            return 0
+
+        if args.command == "template-tracker-validate":
+            sheets = None
+            raw = getattr(args, "sheets", None)
+            if raw:
+                sheets = [s.strip() for s in raw.split(",") if s.strip()]
+            cmd_template_tracker_validate(args.template, sheets)
             return 0
 
         parser.error(f"Unknown command: {args.command}")

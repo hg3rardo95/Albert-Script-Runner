@@ -182,7 +182,7 @@ private struct LocationInputEditor: View {
                     ) {
                         onRemove(row.id)
                     }
-                    .animation(.easeInOut(duration: 0.2), value: locAction)
+                    .animation(.easeInOut(duration: 0.3), value: locAction)
                 }
 
                 HStack(spacing: 10) {
@@ -200,7 +200,7 @@ private struct LocationInputEditor: View {
                 }
                 .padding(.top, 2)
             }
-            .animation(.easeInOut(duration: 0.2), value: locationInputs.count)
+            .animation(.easeInOut(duration: 0.3), value: locationInputs.count)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 8)
         }
