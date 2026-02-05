@@ -55,3 +55,49 @@ struct SavePanel {
         }
     }
 }
+
+/// Small helper for showing a macOS open dialog (NSOpenPanel)
+/// and returning the selected file URL.
+struct OpenPanel {
+
+    /// Shows an Open dialog.
+    /// - Parameters:
+    ///   - title: Window title.
+    ///   - message: Helper message shown in the panel.
+    ///   - allowedFileExtensions: File extensions without dots (e.g., ["xlsx"]).
+    /// - Returns: Selected file URL, or `nil` if the user cancels.
+    @MainActor
+    static func show(
+        title: String = "Select File",
+        message: String = "Choose a file.",
+        allowedFileExtensions: [String]
+    ) async -> URL? {
+
+        let panel = NSOpenPanel()
+        panel.title = title
+        panel.message = message
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.resolvesAliases = true
+
+        if !allowedFileExtensions.isEmpty {
+            panel.allowedContentTypes = allowedFileExtensions.compactMap { ext in
+                if #available(macOS 11.0, *) {
+                    return UTType(filenameExtension: ext)
+                }
+                return nil
+            }
+        }
+
+        return await withCheckedContinuation { continuation in
+            panel.begin { response in
+                if response == .OK {
+                    continuation.resume(returning: panel.url)
+                } else {
+                    continuation.resume(returning: nil)
+                }
+            }
+        }
+    }
+}

@@ -178,8 +178,11 @@ final class CustomTemplateEntity {
     var updatedAt: Date
 
     // Relationships (many-to-many via link models)
-    var parameterGroupLinks: [TemplateParameterGroupLinkEntity]
-    var dataTemplateLinks: [TemplateDataTemplateLinkEntity]
+    @Relationship(deleteRule: .cascade, inverse: \TemplateParameterGroupLinkEntity.template)
+    var parameterGroupLinks: [TemplateParameterGroupLinkEntity] = []
+
+    @Relationship(deleteRule: .cascade, inverse: \TemplateDataTemplateLinkEntity.template)
+    var dataTemplateLinks: [TemplateDataTemplateLinkEntity] = []
 
     init(
         albertId: String,
@@ -207,9 +210,6 @@ final class CustomTemplateEntity {
         self.lastSeenAt = lastSeenAt
         self.createdAt = Date()
         self.updatedAt = Date()
-
-        self.parameterGroupLinks = []
-        self.dataTemplateLinks = []
     }
 
     var tags: [String] {
@@ -238,7 +238,7 @@ final class TemplateParameterGroupLinkEntity {
     /// Optional stable identifier for debugging/export.
     var id: UUID
 
-    @Relationship(deleteRule: .cascade, inverse: \CustomTemplateEntity.parameterGroupLinks)
+    @Relationship(deleteRule: .nullify)
     var template: CustomTemplateEntity
 
     var parameterGroup: ParameterGroupEntity
@@ -261,7 +261,7 @@ final class TemplateDataTemplateLinkEntity {
     /// Optional stable identifier for debugging/export.
     var id: UUID
 
-    @Relationship(deleteRule: .cascade, inverse: \CustomTemplateEntity.dataTemplateLinks)
+    @Relationship(deleteRule: .nullify)
     var template: CustomTemplateEntity
 
     var dataTemplate: DataTemplateEntity
@@ -278,4 +278,3 @@ final class TemplateDataTemplateLinkEntity {
         self.dataTemplateAlbertId = dataTemplate.albertId
     }
 }
-

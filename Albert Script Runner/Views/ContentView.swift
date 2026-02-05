@@ -5,6 +5,7 @@
 
 import SwiftUI
 import AppKit
+import LocalAuthentication
 
 struct ContentView: View {
     @SwiftUI.Environment(\SwiftUI.EnvironmentValues.accessibilityReduceTransparency) private var reduceTransparency
@@ -30,6 +31,24 @@ struct ContentView: View {
     @State private var migrationBarExpanded: Bool = true
     @State private var migrationBarHovering: Bool = false
     @State private var migrationInputs = MigrationTemplateInputs()
+    @State private var selectedMigrationFileURL: URL? = nil
+    @State private var didPromptForMigrationFile: Bool = false
+    @State private var didLoadMigrationBookmark: Bool = false
+    @State private var showSavedTokensPopoverTop: Bool = false
+    @State private var showSavedTokensPopoverMigration: Bool = false
+    @State private var savedTokensUnlocked: Bool = false
+    @State private var savedTokensAuthInProgress: Bool = false
+    @State private var savedTokens: [SavedTokenMetadata] = []
+    @State private var savedTokensError: String = ""
+    @State private var savedTokensLastUnlockAt: Date? = nil
+    @State private var savedTokensAuthContext: LAContext? = nil
+    @State private var showAddTokenSheet: Bool = false
+    @State private var addTokenValue: String = ""
+    @State private var addTokenError: String = ""
+    @State private var addTokenLabel: String = ""
+    @State private var addTokenEnv: Environment = .sandbox
+
+    private let savedTokensAuthReuseSeconds: TimeInterval = 300
 
     private var tokenIsFilled: Bool {
         !token.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -159,6 +178,25 @@ struct ContentView: View {
                 }
             }
         }
+        .onAppear {
+            guard !didLoadMigrationBookmark else { return }
+            didLoadMigrationBookmark = true
+            guard selectedMigrationFileURL == nil else { return }
+            if let url = MigrationFileBookmarkStore.shared.loadURL() {
+                selectedMigrationFileURL = url
+            }
+        }
+        .onChange(of: selectedMigrationFileURL) { _, newValue in
+            if let url = newValue {
+                do {
+                    try MigrationFileBookmarkStore.shared.save(url: url)
+                } catch {
+                    showWarning("Unable to remember file", error.localizedDescription)
+                }
+            } else {
+                MigrationFileBookmarkStore.shared.clear()
+            }
+        }
         // Collapse when the app resigns active (e.g., click outside the window/app)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.willResignActiveNotification)) { _ in
             withAnimation(.easeInOut(duration: 0.5)) {
@@ -181,6 +219,12 @@ struct ContentView: View {
                 }
             }
         }
+        .onChange(of: showSavedTokensPopoverTop) { _, isPresented in
+            handleSavedTokensPopoverChange(isPresented)
+        }
+        .onChange(of: showSavedTokensPopoverMigration) { _, isPresented in
+            handleSavedTokensPopoverChange(isPresented)
+        }
         .alert(alertTitle, isPresented: $showAlert) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -197,6 +241,20 @@ struct ContentView: View {
             }
         } message: {
             Text(templateAlertBody)
+        }
+        .sheet(isPresented: $showAddTokenSheet) {
+            SavedTokenAddSheetView(
+                tokenLabel: $addTokenLabel,
+                tokenValue: $addTokenValue,
+                selectedEnv: $addTokenEnv,
+                errorMessage: addTokenError,
+                onCancel: {
+                    dismissAddTokenSheet()
+                },
+                onSave: {
+                    saveNewToken()
+                }
+            )
         }
     }
 
@@ -232,6 +290,15 @@ struct ContentView: View {
                             }
                         }
                         .frame(width: 170)
+
+                        if tokenBarHovering || showSavedTokensPopoverTop {
+                            SavedTokensMenuButton(
+                                isVisible: true,
+                                isPresented: $showSavedTokensPopoverTop
+                            ) {
+                                savedTokensPopoverContent
+                            }
+                        }
                     }
 
                     if tokenIsFilled {
@@ -253,16 +320,20 @@ struct ContentView: View {
                 }
                 // Swallow taps in the expanded bar so clicking inside it doesn't collapse it via the root onTapGesture
                 .contentShape(Rectangle())
-                .highPriorityGesture(TapGesture().onEnded { })
+                .onTapGesture { }
 
             } else {
                 // Collapsed summary state
                 HStack(spacing: 10) {
                     Text(tokenSummary?.name ?? "—")
                         .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
                     Text(tokenSummary?.tenantId ?? "—")
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
                     Spacer(minLength: 0)
 
@@ -270,20 +341,35 @@ struct ContentView: View {
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
                     if tokenBarHovering {
                         Text("Click to edit")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                             .transition(.opacity)
+                    }
+
+                    if tokenBarHovering || showSavedTokensPopoverTop {
+                        SavedTokensMenuButton(
+                            isVisible: true,
+                            isPresented: $showSavedTokensPopoverTop
+                        ) {
+                            savedTokensPopoverContent
+                        }
                     }
                 }
                 .contentShape(Rectangle())
-                .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.5)) {
-                        tokenBarExpanded = true
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            tokenBarExpanded = true
+                        }
                     }
-                }
+                )
             }
         }
         .padding(10)
@@ -326,6 +412,15 @@ struct ContentView: View {
                             }
                         }
                         .frame(width: 170)
+
+                        if migrationBarHovering || showSavedTokensPopoverMigration {
+                            SavedTokensMenuButton(
+                                isVisible: true,
+                                isPresented: $showSavedTokensPopoverMigration
+                            ) {
+                                savedTokensPopoverContent
+                            }
+                        }
                     }
 
                     if migrationTokenIsFilled {
@@ -347,16 +442,20 @@ struct ContentView: View {
                 }
                 // Swallow taps in the expanded bar so clicking inside it doesn't collapse it via the parent onTapGesture
                 .contentShape(Rectangle())
-                .highPriorityGesture(TapGesture().onEnded { })
+                .onTapGesture { }
 
             } else {
                 // Collapsed summary state
                 HStack(spacing: 10) {
                     Text(migrationTokenSummary?.name ?? "—")
                         .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
                     Text(migrationTokenSummary?.tenantId ?? "—")
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
                     Spacer(minLength: 0)
 
@@ -364,20 +463,35 @@ struct ContentView: View {
                         .font(.title3)
                         .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
 
                     if migrationBarHovering {
-                        Text("Click to edit")
+                        Text("Click bar to edit")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
                             .transition(.opacity)
+                    }
+
+                    if migrationBarHovering || showSavedTokensPopoverMigration {
+                        SavedTokensMenuButton(
+                            isVisible: true,
+                            isPresented: $showSavedTokensPopoverMigration
+                        ) {
+                            savedTokensPopoverContent
+                        }
                     }
                 }
                 .contentShape(Rectangle())
-                .onTapGesture {
-                    withAnimation(.easeInOut(duration: 0.5)) {
-                        migrationBarExpanded = true
+                .simultaneousGesture(
+                    TapGesture().onEnded {
+                        withAnimation(.easeInOut(duration: 0.5)) {
+                            migrationBarExpanded = true
+                        }
                     }
-                }
+                )
             }
         }
         .padding(10)
@@ -457,7 +571,11 @@ struct ContentView: View {
                     .transition(.opacity)
 
             case .migration:
-                MigrationTemplatesView(inputs: $migrationInputs)
+                MigrationTemplatesView(
+                    inputs: $migrationInputs,
+                    selectedMigrationFileURL: $selectedMigrationFileURL,
+                    didPromptForMigrationFile: $didPromptForMigrationFile
+                )
                     .glassEffectTransition(.materialize)
                     .transition(.opacity)
 
@@ -499,10 +617,14 @@ struct ContentView: View {
         HStack {
             Spacer()
 
-            Button(isRunning ? "Running..." : (action?.runButtonTitle(locAction: locAction) ?? "Run Script")) {
+            Button(isRunning ? "Running..." : (action?.runButtonTitle(
+                locAction: locAction,
+                hasMigrationFile: action == .migration && selectedMigrationFileURL != nil
+            ) ?? "Run Script")) {
                 onRunClicked()
             }
             .frame(width: 160)
+            .id(selectedMigrationFileURL?.path ?? "no-migration-file")
             .disabled(isRunning)
 
             Spacer()
@@ -527,6 +649,245 @@ struct ContentView: View {
             if action == .migration, migrationEnabled, migrationTokenIsFilled, migrationBarExpanded {
                 migrationBarExpanded = false
             }
+        }
+    }
+
+    // MARK: - Saved Tokens UI helpers
+
+    private var savedTokensPopoverContent: some View {
+        SavedTokensPopoverView(
+            isUnlocked: savedTokensUnlocked,
+            isAuthenticating: savedTokensAuthInProgress,
+            tokens: savedTokens,
+            errorMessage: savedTokensError.isEmpty ? nil : savedTokensError,
+            onUnlock: {
+                unlockSavedTokens()
+            },
+            onSelect: { token in
+                selectSavedToken(token)
+            },
+            onRename: { token in
+                promptRenameToken(token)
+            },
+            onDelete: { token in
+                confirmDeleteToken(token)
+            },
+            onAdd: {
+                presentAddTokenSheet()
+            }
+        )
+        .interactiveDismissDisabled(savedTokensAuthInProgress)
+    }
+
+    private func handleSavedTokensPopoverChange(_ isPresented: Bool) {
+        if isPresented {
+            savedTokensAuthInProgress = false
+            savedTokensError = ""
+
+            if let last = savedTokensLastUnlockAt,
+               Date().timeIntervalSince(last) <= savedTokensAuthReuseSeconds,
+               savedTokensAuthContext != nil {
+                savedTokensUnlocked = true
+                do {
+                    savedTokens = try SavedTokenStore.shared.listMetadata()
+                } catch {
+                    savedTokensError = error.localizedDescription
+                }
+            } else {
+                savedTokensUnlocked = false
+            }
+            return
+        }
+
+        if !showSavedTokensPopoverTop, !showSavedTokensPopoverMigration {
+            savedTokensUnlocked = false
+            savedTokensAuthInProgress = false
+            savedTokensError = ""
+        }
+    }
+
+    private func unlockSavedTokens() {
+        guard !savedTokensAuthInProgress else { return }
+
+        if let last = savedTokensLastUnlockAt,
+           Date().timeIntervalSince(last) <= savedTokensAuthReuseSeconds,
+           savedTokensAuthContext != nil {
+            savedTokensUnlocked = true
+            savedTokensLastUnlockAt = Date()
+            do {
+                savedTokens = try SavedTokenStore.shared.listMetadata()
+            } catch {
+                savedTokensError = error.localizedDescription
+            }
+            return
+        }
+
+        savedTokensError = ""
+        let context = LAContext()
+        var authError: NSError?
+
+        context.touchIDAuthenticationAllowableReuseDuration = savedTokensAuthReuseSeconds
+
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &authError) else {
+            savedTokensError = authError?.localizedDescription ?? "Authentication is unavailable."
+            return
+        }
+
+        savedTokensAuthInProgress = true
+        context.evaluatePolicy(
+            .deviceOwnerAuthentication,
+            localizedReason: "Unlock saved tokens"
+        ) { success, error in
+            Task { @MainActor in
+                savedTokensAuthInProgress = false
+                if success {
+                    savedTokensUnlocked = true
+                    savedTokensLastUnlockAt = Date()
+                    savedTokensAuthContext = context
+                    do {
+                        savedTokens = try SavedTokenStore.shared.listMetadata()
+                    } catch {
+                        savedTokensError = error.localizedDescription
+                    }
+                } else {
+                    savedTokensUnlocked = false
+                    savedTokensAuthContext = nil
+                    if let error {
+                        savedTokensError = error.localizedDescription
+                    }
+                }
+            }
+        }
+    }
+
+    private func makeSavedTokensContext() -> LAContext {
+        if let existing = savedTokensAuthContext {
+            return existing
+        }
+
+        let context = LAContext()
+        context.touchIDAuthenticationAllowableReuseDuration = savedTokensAuthReuseSeconds
+        return context
+    }
+
+    private func selectSavedToken(_ tokenMetadata: SavedTokenMetadata) {
+        savedTokensError = ""
+
+        do {
+            let tokenValue = try SavedTokenStore.shared.loadToken(
+                id: tokenMetadata.id,
+                prompt: "Unlock saved token",
+                context: makeSavedTokensContext()
+            )
+
+            token = tokenValue
+            if let environment = Environment.fromBaseURL(tokenMetadata.baseURL) {
+                env = environment
+            } else {
+                savedTokensError = "Saved base URL does not match a known environment."
+            }
+        } catch {
+            savedTokensError = error.localizedDescription
+        }
+    }
+
+    private func presentAddTokenSheet() {
+        addTokenValue = ""
+        addTokenError = ""
+        addTokenLabel = ""
+        addTokenEnv = currentSavedTokensEnvironment()
+        showAddTokenSheet = true
+    }
+
+    private func dismissAddTokenSheet() {
+        showAddTokenSheet = false
+        addTokenError = ""
+    }
+
+    private func saveNewToken() {
+        addTokenError = ""
+        let trimmed = addTokenValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let summary = decodeJwtSummary(trimmed) else {
+            addTokenError = "Invalid token."
+            return
+        }
+
+        if let exp = summary.expiresAt, exp < Date() {
+            let alert = NSAlert()
+            alert.messageText = "Token is expired"
+            alert.informativeText = "This token has already expired. Save anyway?"
+            alert.alertStyle = .warning
+            alert.addButton(withTitle: "Save Anyway")
+            alert.addButton(withTitle: "Cancel")
+            let response = alert.runModal()
+            guard response == .alertFirstButtonReturn else { return }
+        }
+
+        do {
+            let _ = try SavedTokenStore.shared.saveToken(
+                jwt: trimmed,
+                baseURL: addTokenEnv.baseURL,
+                label: addTokenLabel
+            )
+            savedTokens = try SavedTokenStore.shared.listMetadata()
+            showAddTokenSheet = false
+        } catch {
+            addTokenError = error.localizedDescription
+        }
+    }
+
+    private func currentSavedTokensEnvironment() -> Environment {
+        if showSavedTokensPopoverMigration {
+            return migrationEnv
+        }
+        return env
+    }
+
+    private func promptRenameToken(_ tokenMetadata: SavedTokenMetadata) {
+        let alert = NSAlert()
+        alert.messageText = "Rename Saved Token"
+        alert.informativeText = "Enter a new name for this token."
+        alert.alertStyle = .informational
+
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 260, height: 24))
+        input.stringValue = tokenMetadata.label
+        alert.accessoryView = input
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+
+        let newLabel = input.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newLabel.isEmpty else {
+            savedTokensError = "Name cannot be empty."
+            return
+        }
+
+        do {
+            _ = try SavedTokenStore.shared.renameToken(id: tokenMetadata.id, newLabel: newLabel)
+            savedTokens = try SavedTokenStore.shared.listMetadata()
+        } catch {
+            savedTokensError = error.localizedDescription
+        }
+    }
+
+    private func confirmDeleteToken(_ tokenMetadata: SavedTokenMetadata) {
+        let alert = NSAlert()
+        alert.messageText = "Delete Saved Token?"
+        alert.informativeText = "This removes the token from your Mac's keychain."
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "Delete")
+        alert.addButton(withTitle: "Cancel")
+
+        let response = alert.runModal()
+        guard response == .alertFirstButtonReturn else { return }
+
+        do {
+            try SavedTokenStore.shared.deleteToken(id: tokenMetadata.id)
+            savedTokens = try SavedTokenStore.shared.listMetadata()
+        } catch {
+            savedTokensError = error.localizedDescription
         }
     }
 
@@ -602,7 +963,11 @@ struct ContentView: View {
             }
 
         case .migration:
-            runMigrationTemplateExport(token: t, baseURL: baseURL)
+            runMigrationTemplateExport(
+                token: t,
+                baseURL: baseURL,
+                outputURLOverride: selectedMigrationFileURL
+            )
         }
     }
 
@@ -728,28 +1093,55 @@ struct ContentView: View {
         }
     }
 
-    private func runMigrationTemplateExport(token: String, baseURL: String) {
+    private func runMigrationTemplateExport(
+        token: String,
+        baseURL: String,
+        outputURLOverride: URL?
+    ) {
         Task { @MainActor in
             isRunning = true
             defer { isRunning = false }
 
-            let saveURL = await SavePanel.show(
-                title: "Save migration templates as…",
-                message: "Choose where to save the Excel file.",
-                defaultFileName: "migration_template_tracker.xlsx",
-                allowedFileExtensions: ["xlsx"]
-            )
+            let outputURL: URL
+            if let override = outputURLOverride {
+                outputURL = override
+            } else {
+                let saveURL = await SavePanel.show(
+                    title: "Save migration templates as…",
+                    message: "Choose where to save the Excel file.",
+                    defaultFileName: "03 - Production Migration Template.xlsx",
+                    allowedFileExtensions: ["xlsx"]
+                )
 
-            guard let saveURL else { return }
+                guard let saveURL else { return }
+                outputURL = saveURL
+            }
 
             do {
+                let didStartAccess = outputURL.startAccessingSecurityScopedResource()
+                defer {
+                    if didStartAccess {
+                        outputURL.stopAccessingSecurityScopedResource()
+                    }
+                }
+
+                if outputURLOverride != nil,
+                   !FileManager.default.fileExists(atPath: outputURL.path) {
+                    selectedMigrationFileURL = nil
+                    showWarning(
+                        "Selected file not found",
+                        "The selected migration file could not be found. Please choose another file."
+                    )
+                    return
+                }
+
                 var backupURL: URL? = nil
                 let requiredSheets = MigrationTemplateRunner.requiredSheets(for: migrationInputs)
 
-                if FileManager.default.fileExists(atPath: saveURL.path) {
+                if FileManager.default.fileExists(atPath: outputURL.path) {
                     if !requiredSheets.isEmpty {
                         let validation = try await MigrationTemplateRunner.validateTemplate(
-                            at: saveURL,
+                            at: outputURL,
                             sheets: requiredSheets
                         )
 
@@ -764,27 +1156,27 @@ Replace will back up the existing file and copy the official template into place
 """
                             let decision = await promptTemplateMismatch(message)
                             if decision == .replace {
-                                backupURL = try MigrationTemplateRunner.replaceWithBundledTemplate(at: saveURL)
+                                backupURL = try MigrationTemplateRunner.replaceWithBundledTemplate(at: outputURL)
                             } else {
                                 return
                             }
                         }
                     }
                 } else {
-                    try MigrationTemplateRunner.copyBundledTemplate(to: saveURL)
+                    try MigrationTemplateRunner.copyBundledTemplate(to: outputURL)
                 }
 
                 let output = try await MigrationTemplateRunner.export(
                     baseURL: baseURL,
                     token: token,
                     inputs: migrationInputs,
-                    outputURL: saveURL
+                    outputURL: outputURL
                 )
 
                 let backupLine = backupURL.map { "\n\nBackup:\n\($0.path)" } ?? ""
                 showInfo(
                     "Migration templates exported",
-                    "Saved to:\n\(saveURL.path)\(backupLine)\n\n\(output)"
+                    "Saved to:\n\(outputURL.path)\(backupLine)\n\n\(output)"
                 )
             } catch {
                 showWarning("Migration export error", error.localizedDescription)
@@ -812,6 +1204,34 @@ Replace will back up the existing file and copy the official template into place
             templateAlertBody = message
             templateDecisionContinuation = continuation
             showTemplateAlert = true
+        }
+    }
+}
+
+private struct SavedTokensMenuButton<PopoverContent: View>: View {
+    let isVisible: Bool
+    @Binding var isPresented: Bool
+    let popoverContent: () -> PopoverContent
+
+    var body: some View {
+        Button {
+            isPresented = true
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 22, weight: .bold))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.thinMaterial, in: Capsule())
+                .overlay(
+                    Capsule()
+                        .strokeBorder(Color.secondary.opacity(0.2), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
+        .popover(isPresented: $isPresented, arrowEdge: .top) {
+            popoverContent()
         }
     }
 }

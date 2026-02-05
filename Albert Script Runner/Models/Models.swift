@@ -25,6 +25,19 @@ enum Environment: String, CaseIterable, Identifiable {
             return "https://dev.albertinventdev.com/"
         }
     }
+
+    static func fromBaseURL(_ value: String) -> Environment? {
+        let normalized = normalizeBaseURL(value)
+        return Self.allCases.first { normalizeBaseURL($0.baseURL) == normalized }
+    }
+
+    private static func normalizeBaseURL(_ value: String) -> String {
+        var s = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        while s.hasSuffix("/") {
+            s.removeLast()
+        }
+        return s
+    }
 }
 
 // MARK: - Top-level action selection
@@ -61,7 +74,7 @@ extension AppAction {
         }
     }
 
-    func runButtonTitle(locAction: LocationAction?) -> String {
+    func runButtonTitle(locAction: LocationAction?, hasMigrationFile: Bool = false) -> String {
         switch runIntent(locAction: locAction) {
         case .downloadUsers:
             return "Download Users"
@@ -70,7 +83,7 @@ extension AppAction {
         case .updateLocations:
             return "Update Locations"
         case .migration:
-            return "Populate Migration Docs"
+            return hasMigrationFile ? "Populate Existing File" : "Export Migration Doc"
         case .listLocations:
             return "Refresh Locations"
         case .none:

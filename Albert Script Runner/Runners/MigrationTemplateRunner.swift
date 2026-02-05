@@ -167,7 +167,7 @@ struct MigrationTemplateRunner {
     }
 
     static func bundledTemplateURL() throws -> URL {
-        let name = "03 - Production Migration Template - Jan 26"
+        let name = "03 - Production Migration Template"
         let ext = "xlsx"
 
         if let url = Bundle.main.url(forResource: name, withExtension: ext) {
@@ -257,4 +257,3 @@ struct MigrationTemplateRunner {
         return lines.joined(separator: "\n")
     }
 }
-
