@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
+from copy import copy
 from urllib.parse import quote
 
 import os
@@ -28,6 +29,16 @@ _EXPECTED_HEADERS = {
     "Notebook Templates": ["Notebook Template Name", "Migrate?", "Migration Complete?", "Notes (optional)"],
     "General Task Templates": ["Template Name", "Migrate?", "Migration Complete?", "Notes (optional)"],
     "Sheet Templates": ["Template Name", "Migrate?", "Migration Complete?", "Notes (optional)"],
+}
+_ALBERT_ID_HEADER = "Albert ID"
+_ALBERT_ID_OPTIONAL_SHEETS = {
+    "DTs",
+    "PGs",
+    "Batch Task Templates",
+    "Property Task Templates",
+    "Notebook Templates",
+    "General Task Templates",
+    "Sheet Templates",
 }
 
 
@@ -60,11 +71,20 @@ def _require_file_exists(path: str) -> None:
         )
 
 
+def _find_header_row(
+    ws: openpyxl.worksheet.worksheet.Worksheet,
+    max_rows: int = 10,
+) -> tuple[int | None, list[str] | None]:
+    for row in ws.iter_rows(min_row=1, max_row=max_rows, values_only=False):
+        if any(cell.value is not None and str(cell.value).strip() != "" for cell in row):
+            values = ["" if cell.value is None else str(cell.value).strip() for cell in row]
+            return row[0].row, values
+    return None, None
+
+
 def _first_non_empty_row(ws: openpyxl.worksheet.worksheet.Worksheet) -> list[str] | None:
-    for row in ws.iter_rows(min_row=1, max_row=10, values_only=True):
-        if any(cell is not None and str(cell).strip() != "" for cell in row):
-            return ["" if v is None else str(v).strip() for v in row]
-    return None
+    _, values = _find_header_row(ws)
+    return values
 
 
 def _trim_trailing_blanks(values: list[str]) -> list[str]:
@@ -72,6 +92,71 @@ def _trim_trailing_blanks(values: list[str]) -> list[str]:
     while trimmed and trimmed[-1] == "":
         trimmed.pop()
     return trimmed
+
+
+def _last_non_empty_index(values: list[str]) -> int:
+    for idx in range(len(values) - 1, -1, -1):
+        if values[idx] != "":
+            return idx + 1
+    return 0
+
+
+def _first_non_empty_index(values: list[str]) -> int:
+    for idx, value in enumerate(values):
+        if value != "":
+            return idx + 1
+    return 0
+
+
+def _header_variants(sheet_name: str) -> list[list[str]]:
+    base = _EXPECTED_HEADERS.get(sheet_name, [])
+    if sheet_name in _ALBERT_ID_OPTIONAL_SHEETS:
+        return [base, base + [_ALBERT_ID_HEADER]]
+    return [base]
+
+
+def _ensure_albert_id_header(filename: str, sheet_name: str) -> None:
+    if sheet_name not in _ALBERT_ID_OPTIONAL_SHEETS:
+        return
+
+    wb = openpyxl.load_workbook(filename)
+    if sheet_name not in wb.sheetnames:
+        return
+
+    ws = wb[sheet_name]
+    row_index, header_raw = _find_header_row(ws)
+    if row_index is None:
+        row_index = 1
+        header_raw = []
+
+    header_raw = header_raw or []
+    header_trimmed = _trim_trailing_blanks(header_raw)
+
+    last_idx = _last_non_empty_index(header_raw)
+    first_idx = _first_non_empty_index(header_raw)
+
+    if _ALBERT_ID_HEADER in header_trimmed:
+        target_col = header_trimmed.index(_ALBERT_ID_HEADER) + 1
+        target_cell = ws.cell(row=row_index, column=target_col)
+        source_col = None
+        if last_idx > 0 and last_idx != target_col:
+            source_col = last_idx
+        elif first_idx > 0 and first_idx != target_col:
+            source_col = first_idx
+    else:
+        target_col = last_idx + 1
+        target_cell = ws.cell(row=row_index, column=target_col, value=_ALBERT_ID_HEADER)
+        source_col = last_idx if last_idx > 0 else first_idx if first_idx > 0 else None
+
+    if source_col:
+        source_cell = ws.cell(row=row_index, column=source_col)
+        target_cell.font = copy(source_cell.font)
+        target_cell.fill = copy(source_cell.fill)
+        target_cell.border = copy(source_cell.border)
+        target_cell.alignment = copy(source_cell.alignment)
+        target_cell.number_format = copy(source_cell.number_format)
+        target_cell.protection = copy(source_cell.protection)
+    wb.save(filename)
 
 
 def validate_template(path: str, required_sheets: list[str] | None = None) -> dict:
@@ -92,9 +177,10 @@ def validate_template(path: str, required_sheets: list[str] | None = None) -> di
         ws = wb[sheet_name]
         actual_raw = _first_non_empty_row(ws) or []
         actual = _trim_trailing_blanks(actual_raw)
-        expected = _EXPECTED_HEADERS.get(sheet_name, [])
+        variants = _header_variants(sheet_name)
 
-        if actual != expected:
+        if actual not in variants:
+            expected = _EXPECTED_HEADERS.get(sheet_name, [])
             header_mismatches.append(
                 {"sheet": sheet_name, "expected": expected, "actual": actual}
             )
@@ -170,6 +256,7 @@ def get_data_templates_by_prefix(prefix: str, client: Albert) -> pd.DataFrame:
     - Migrate?
     - Migration Complete?
     - Notes (optional) (hyperlink)
+    - Albert ID (raw DAT...)
     """
     quoted = f'"{prefix}"'
     dt_list = client.data_templates.search(name=quoted)
@@ -177,7 +264,14 @@ def get_data_templates_by_prefix(prefix: str, client: Albert) -> pd.DataFrame:
     if not dt_list:
         print("No DTs match the prefix, continuing...")
         return pd.DataFrame(
-            columns=["Data Template Name", "DT ID", "Migrate?", "Migration Complete?", "Notes (optional)"]
+            columns=[
+                "Data Template Name",
+                "DT ID",
+                "Migrate?",
+                "Migration Complete?",
+                "Notes (optional)",
+                "Albert ID",
+            ]
         )
 
     data = [
@@ -189,8 +283,9 @@ def get_data_templates_by_prefix(prefix: str, client: Albert) -> pd.DataFrame:
             "Notes (optional)": (
                 f'=HYPERLINK("'
                 f"{client.session.base_url}/#aldt/detail?query={dt.id.replace('DAT','DT')}"
-                f'","{dt.id.replace("DAT","DT")}")'
+                f'","Link")'
             ),
+            "Albert ID": dt.id,
         }
         for dt in dt_list
         if dt.name.startswith(prefix)
@@ -198,7 +293,14 @@ def get_data_templates_by_prefix(prefix: str, client: Albert) -> pd.DataFrame:
 
     if not data:
         return pd.DataFrame(
-            columns=["Data Template Name", "DT ID", "Migrate?", "Migration Complete?", "Notes (optional)"]
+            columns=[
+                "Data Template Name",
+                "DT ID",
+                "Migrate?",
+                "Migration Complete?",
+                "Notes (optional)",
+                "Albert ID",
+            ]
         )
 
     df = pd.DataFrame(data)
@@ -216,6 +318,7 @@ def get_parameter_groups_by_prefix(prefix: str, client: Albert) -> pd.DataFrame:
     - Migrate?
     - Migration Complete?
     - Notes (optional) (hyperlink)
+    - Albert ID (raw PRG...)
     """
     quoted = f'"{prefix}"'
     pg_list = client.parameter_groups.search(text=quoted)
@@ -223,7 +326,14 @@ def get_parameter_groups_by_prefix(prefix: str, client: Albert) -> pd.DataFrame:
     if not pg_list:
         print("No PGs match the prefix, continuing...")
         return pd.DataFrame(
-            columns=["Parameter Group Name", "PG ID", "Migrate?", "Migration Complete?", "Notes (optional)"]
+            columns=[
+                "Parameter Group Name",
+                "PG ID",
+                "Migrate?",
+                "Migration Complete?",
+                "Notes (optional)",
+                "Albert ID",
+            ]
         )
 
     data = [
@@ -235,8 +345,9 @@ def get_parameter_groups_by_prefix(prefix: str, client: Albert) -> pd.DataFrame:
             "Notes (optional)": (
                 f'=HYPERLINK("'
                 f"{client.session.base_url}/#alpg/detail?query={pg.id.replace('PRG','PG')}"
-                f'","{pg.id.replace("PRG","PG")}")'
+                f'","Link")'
             ),
+            "Albert ID": pg.id,
         }
         for pg in pg_list
         if pg.name.startswith(prefix)
@@ -244,7 +355,14 @@ def get_parameter_groups_by_prefix(prefix: str, client: Albert) -> pd.DataFrame:
 
     if not data:
         return pd.DataFrame(
-            columns=["Parameter Group Name", "PG ID", "Migrate?", "Migration Complete?", "Notes (optional)"]
+            columns=[
+                "Parameter Group Name",
+                "PG ID",
+                "Migrate?",
+                "Migration Complete?",
+                "Notes (optional)",
+                "Albert ID",
+            ]
         )
 
     df = pd.DataFrame(data)
@@ -266,6 +384,7 @@ def get_custom_templates_by_prefix(
     - Migrate?
     - Migration Complete?
     - Notes (optional)
+    - Albert ID (raw CTP...)
     """
     quoted = f'"{prefix}"'
     ctp_list = client.custom_templates.search(text=quoted)
@@ -273,7 +392,7 @@ def get_custom_templates_by_prefix(
     if not ctp_list:
         print(f"No {category} templates match the prefix, continuing...")
         return pd.DataFrame(
-            columns=[name_column, "Migrate?", "Migration Complete?", "Notes (optional)"]
+            columns=[name_column, "Migrate?", "Migration Complete?", "Notes (optional)", "Albert ID"]
         )
 
     data = [
@@ -282,6 +401,7 @@ def get_custom_templates_by_prefix(
             "Migrate?": "Yes",
             "Migration Complete?": "",
             "Notes (optional)": "",
+            "Albert ID": ctp.id,
         }
         for ctp in ctp_list
         if ctp.category == category and ctp.name.startswith(prefix)
@@ -290,7 +410,7 @@ def get_custom_templates_by_prefix(
     if not data:
         print(f"No {category} templates match the prefix, continuing...")
         return pd.DataFrame(
-            columns=[name_column, "Migrate?", "Migration Complete?", "Notes (optional)"]
+            columns=[name_column, "Migrate?", "Migration Complete?", "Notes (optional)", "Albert ID"]
         )
 
     df = pd.DataFrame(data)
@@ -320,7 +440,14 @@ def get_data_templates_by_tag(
     if not items:
         print("No DTs have these tags, continuing...")
         return pd.DataFrame(
-            columns=["Data Template Name", "DT ID", "Migrate?", "Migration Complete?", "Notes (optional)"]
+            columns=[
+                "Data Template Name",
+                "DT ID",
+                "Migrate?",
+                "Migration Complete?",
+                "Notes (optional)",
+                "Albert ID",
+            ]
         )
 
     data = []
@@ -337,18 +464,26 @@ def get_data_templates_by_tag(
                 "Data Template Name": name,
                 "DT ID": albert_id.replace("DAT", "DT"),
                 "Migrate?": "Yes",
-            "Migration Complete?": "",
-            "Notes (optional)": (
-                f'=HYPERLINK("'
-                f"{client.session.base_url}/#aldt/detail?query={albert_id.replace('DAT','DT')}"
-                f'","{albert_id.replace("DAT","DT")}")'
-            ),
+                "Migration Complete?": "",
+                "Notes (optional)": (
+                    f'=HYPERLINK("'
+                    f"{client.session.base_url}/#aldt/detail?query={albert_id.replace('DAT','DT')}"
+                    f'","Link")'
+                ),
+                "Albert ID": albert_id,
             }
         )
 
     if not data:
         return pd.DataFrame(
-            columns=["Data Template Name", "DT ID", "Migrate?", "Migration Complete?", "Notes (optional)"]
+            columns=[
+                "Data Template Name",
+                "DT ID",
+                "Migrate?",
+                "Migration Complete?",
+                "Notes (optional)",
+                "Albert ID",
+            ]
         )
 
     df = pd.DataFrame(data)
@@ -379,7 +514,14 @@ def get_parameter_groups_by_tag(
     if not items:
         print("No PGs have these tags, continuing...")
         return pd.DataFrame(
-            columns=["Parameter Group Name", "PG ID", "Migrate?", "Migration Complete?", "Notes (optional)"]
+            columns=[
+                "Parameter Group Name",
+                "PG ID",
+                "Migrate?",
+                "Migration Complete?",
+                "Notes (optional)",
+                "Albert ID",
+            ]
         )
 
     data = []
@@ -396,18 +538,26 @@ def get_parameter_groups_by_tag(
                 "Parameter Group Name": name,
                 "PG ID": albert_id.replace("PRG", "PG"),
                 "Migrate?": "Yes",
-            "Migration Complete?": "",
-            "Notes (optional)": (
-                f'=HYPERLINK("'
-                f"{client.session.base_url}/#alpg/detail?query={albert_id.replace('PRG','PG')}"
-                f'","{albert_id.replace("PRG","PG")}")'
-            ),
+                "Migration Complete?": "",
+                "Notes (optional)": (
+                    f'=HYPERLINK("'
+                    f"{client.session.base_url}/#alpg/detail?query={albert_id.replace('PRG','PG')}"
+                    f'","Link")'
+                ),
+                "Albert ID": albert_id,
             }
         )
 
     if not data:
         return pd.DataFrame(
-            columns=["Parameter Group Name", "PG ID", "Migrate?", "Migration Complete?", "Notes (optional)"]
+            columns=[
+                "Parameter Group Name",
+                "PG ID",
+                "Migrate?",
+                "Migration Complete?",
+                "Notes (optional)",
+                "Albert ID",
+            ]
         )
 
     df = pd.DataFrame(data)
@@ -422,6 +572,9 @@ def write_to_excel(output: pd.DataFrame, filename: str, sheet_name: str) -> None
     row_count = len(output.index)
     object_word = "object" if row_count == 1 else "objects"
     print(f"{row_count} {object_word} found, writing to {sheet_name} sheet in {filename}")
+
+    if sheet_name in _ALBERT_ID_OPTIONAL_SHEETS and _ALBERT_ID_HEADER in output.columns:
+        _ensure_albert_id_header(filename, sheet_name)
 
     with pd.ExcelWriter(
         filename,
