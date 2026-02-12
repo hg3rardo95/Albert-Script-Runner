@@ -14,6 +14,7 @@ struct LocationsManagerView: View {
     @Binding var locationsError: String
     @Binding var locAction: LocationAction
     @Binding var locationInputs: [LocationInputRow]
+    var validationError: String
 
     var onRefresh: () -> Void
 
@@ -86,6 +87,12 @@ struct LocationsManagerView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("Inputs")
                         .font(.headline)
+
+                    if !validationError.isEmpty {
+                        Text(validationError)
+                            .foregroundStyle(.red)
+                            .font(.callout)
+                    }
 
                     Picker("", selection: $locAction) {
                         ForEach(LocationAction.allCases) { a in
@@ -243,13 +250,47 @@ private struct LocationInputCard: View {
             HStack(spacing: 8) {
                 TextField("Latitude", text: $row.latitude)
                     .textFieldStyle(.roundedBorder)
+                    .onChange(of: row.latitude) { _, newValue in
+                        row.latitude = sanitizeCoordinateInput(newValue)
+                    }
                 TextField("Longitude", text: $row.longitude)
                     .textFieldStyle(.roundedBorder)
+                    .onChange(of: row.longitude) { _, newValue in
+                        row.longitude = sanitizeCoordinateInput(newValue)
+                    }
             }
         }
         .padding(10)
         .background(.thinMaterial)
         .cornerRadius(10)
         .transition(.opacity.combined(with: .move(edge: .trailing)))
+    }
+
+    private func sanitizeCoordinateInput(_ raw: String) -> String {
+        // Keep only characters valid in decimal coordinates while typing.
+        let allowed = Set("0123456789.-")
+        let filtered = raw.filter { allowed.contains($0) }
+
+        var out = ""
+        var hasDot = false
+        var hasMinus = false
+
+        for (idx, ch) in filtered.enumerated() {
+            if ch == "." {
+                if hasDot { continue }
+                hasDot = true
+                out.append(ch)
+                continue
+            }
+            if ch == "-" {
+                if hasMinus || idx != 0 { continue }
+                hasMinus = true
+                out.append(ch)
+                continue
+            }
+            out.append(ch)
+        }
+
+        return out
     }
 }

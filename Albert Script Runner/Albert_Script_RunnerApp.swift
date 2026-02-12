@@ -26,7 +26,11 @@ struct Albert_Script_RunnerApp: App {
     }()
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            AppShellView()
+        }
+        .windowToolbarStyle(.unifiedCompact(showsTitle: false))
+        .commands {
+            SidebarCommands()
         }
         .modelContainer(modelContainer)
     }

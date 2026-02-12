@@ -5,6 +5,18 @@ import re
 from albert import Albert
 from albert.resources.locations import Location
 
+LAT_MIN = -90.0
+LAT_MAX = 90.0
+LON_MIN = -180.0
+LON_MAX = 180.0
+
+
+def _validate_lat_lon(lat: float | None, lon: float | None) -> None:
+    if lat is not None and not (LAT_MIN <= lat <= LAT_MAX):
+        raise ValueError(f"Latitude must be between {LAT_MIN} and {LAT_MAX} (got {lat})")
+    if lon is not None and not (LON_MIN <= lon <= LON_MAX):
+        raise ValueError(f"Longitude must be between {LON_MIN} and {LON_MAX} (got {lon})")
+
 
 def _location_exists(client: Albert, loc: Location):
     """SDK-compat helper.
@@ -98,12 +110,17 @@ def collectLocationData(inputs, locSelectedAction):
 
     locations: list[Location] = []
 
-    for entry_fields in inputs:
+    for i, entry_fields in enumerate(inputs):
         name = safe_get(entry_fields, "name")
         address = safe_get(entry_fields, "address")
         country = safe_get(entry_fields, "country")
         latitude = to_float(safe_get(entry_fields, "latitude"), 0.0)
         longitude = to_float(safe_get(entry_fields, "longitude"), 0.0)
+
+        try:
+            _validate_lat_lon(latitude, longitude)
+        except ValueError as e:
+            raise ValueError(f"Row {i}: {e}") from e
 
         if locSelectedAction == "Upload New Location":
             loc = Location(
@@ -206,16 +223,47 @@ def upload_new_locations(base_url: str, token: str, inputs: list[dict]):
     Only the "failed" entries will have a non-empty "error".
     """
 
-    # Build Location objects using the existing conversion logic
-    locations = collectLocationData(inputs, "Upload New Location")
+    def _safe_get(row: dict, key: str) -> str:
+        # accept both id/ID
+        if key == "id":
+            if "id" in row:
+                key = "id"
+            elif "ID" in row:
+                key = "ID"
+        val = row.get(key, "")
+        if val is None:
+            return ""
+        return str(val).strip()
+
+    def _parse_float(s: str, *, default: float, label: str) -> float:
+        s = (s or "").strip()
+        if s == "":
+            return default
+        try:
+            return float(s)
+        except Exception as e:
+            raise ValueError(f"{label} must be a number (got {s})") from e
 
     client = Albert(base_url=base_url, token=token)
 
     results: list[dict] = []
 
-    for loc in locations:
-        name = getattr(loc, "name", "") or ""
+    for row in inputs:
+        name = _safe_get(row, "name")
+        address = _safe_get(row, "address")
+        country = _safe_get(row, "country")
         try:
+            latitude = _parse_float(_safe_get(row, "latitude"), default=0.0, label="latitude")
+            longitude = _parse_float(_safe_get(row, "longitude"), default=0.0, label="longitude")
+            _validate_lat_lon(latitude, longitude)
+
+            loc = Location(
+                name=name,
+                address=address,
+                country=country,
+                latitude=latitude,
+                longitude=longitude,
+            )
             existing = _location_exists(client, loc)
             if existing:
                 results.append(
@@ -330,6 +378,7 @@ def update_existing_locations(base_url: str, token: str, inputs: list[dict]):
 
             lat = _opt_float(lat_s)
             lon = _opt_float(lon_s)
+            _validate_lat_lon(lat, lon)
             if lat is not None:
                 server_loc.latitude = lat
             if lon is not None:

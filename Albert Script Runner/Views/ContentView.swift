@@ -17,7 +17,8 @@ struct ContentView: View {
     @State private var tokenBarHovering: Bool = false
     @State private var action: AppAction? = nil
     @State private var migrationEnabled: Bool = false
-
+          
+        
     // Basic UI feedback (like QMessageBox)
     @State private var showAlert: Bool = false
     @State private var alertTitle: String = ""
@@ -86,6 +87,10 @@ struct ContentView: View {
 
     @State private var locAction: LocationAction = .uploadNew
     @State private var locationInputs: [LocationInputRow] = [LocationInputRow()]
+
+    private var locationInputValidationError: String {
+        validateLocationInputs() ?? ""
+    }
 
     // MARK: - Body
 
@@ -560,6 +565,7 @@ struct ContentView: View {
                     locationsError: $locationsError,
                     locAction: $locAction,
                     locationInputs: $locationInputs,
+                    validationError: locationInputValidationError,
                     onRefresh: { refreshExistingLocations() }
                 )
                 .glassEffectTransition(.materialize)
@@ -625,7 +631,7 @@ struct ContentView: View {
             }
             .frame(width: 160)
             .id(selectedMigrationFileURL?.path ?? "no-migration-file")
-            .disabled(isRunning)
+            .disabled(isRunning || (action == .addLocations && !locationInputValidationError.isEmpty))
 
             Spacer()
         }
@@ -921,6 +927,10 @@ struct ContentView: View {
             refreshExistingLocations()
 
         case .uploadLocations:
+            if let error = validateLocationInputs() {
+                showWarning("Invalid coordinate input", error)
+                return
+            }
             Task { @MainActor in
                 isRunning = true
                 defer { isRunning = false }
@@ -942,6 +952,10 @@ struct ContentView: View {
             }
 
         case .updateLocations:
+            if let error = validateLocationInputs() {
+                showWarning("Invalid coordinate input", error)
+                return
+            }
             Task { @MainActor in
                 isRunning = true
                 defer { isRunning = false }
@@ -969,6 +983,67 @@ struct ContentView: View {
                 outputURLOverride: selectedMigrationFileURL
             )
         }
+    }
+
+    private func validateLocationInputs() -> String? {
+        for (i, row) in locationInputs.enumerated() {
+            let joined = [row.locId, row.name, row.address, row.country, row.latitude, row.longitude]
+                .joined()
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if joined.isEmpty {
+                continue
+            }
+
+            let rowNumber = i + 1
+            if locAction == .updateExisting,
+               row.locId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return "Row \(rowNumber): LOC ID is required for updates."
+            }
+
+            if let latitudeError = validateCoordinate(
+                value: row.latitude,
+                min: -90,
+                max: 90,
+                label: "Latitude",
+                rowNumber: rowNumber
+            ) {
+                return latitudeError
+            }
+
+            if let longitudeError = validateCoordinate(
+                value: row.longitude,
+                min: -180,
+                max: 180,
+                label: "Longitude",
+                rowNumber: rowNumber
+            ) {
+                return longitudeError
+            }
+        }
+        return nil
+    }
+
+    private func validateCoordinate(
+        value: String,
+        min: Double,
+        max: Double,
+        label: String,
+        rowNumber: Int
+    ) -> String? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.isEmpty {
+            return nil
+        }
+
+        guard let numeric = Double(trimmed) else {
+            return "Row \(rowNumber): \(label) must be a numeric coordinate."
+        }
+
+        if numeric < min || numeric > max {
+            return "Row \(rowNumber): \(label) must be between \(min) and \(max)."
+        }
+
+        return nil
     }
 
     private func refreshExistingLocations() {
