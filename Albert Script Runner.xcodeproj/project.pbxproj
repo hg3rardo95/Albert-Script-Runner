@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		56FE0F4C2F3F890000ADBF45 /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 56FE0F4B2F3F88EF00ADBF45 /* .gitignore */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		5621E7502F0EFA580059F33A /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +31,7 @@
 		5621E7422F0EFA560059F33A /* Albert Script Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Albert Script Runner.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5621E74F2F0EFA580059F33A /* Albert Script RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Albert Script RunnerTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5621E7592F0EFA580059F33A /* Albert Script RunnerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Albert Script RunnerUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		56FE0F4B2F3F88EF00ADBF45 /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
@@ -88,6 +93,7 @@
 		5621E7392F0EFA560059F33A = {
 			isa = PBXGroup;
 			children = (
+				56FE0F4B2F3F88EF00ADBF45 /* .gitignore */,
 				5621E7442F0EFA560059F33A /* Albert Script Runner */,
 				5621E7522F0EFA580059F33A /* Albert Script RunnerTests */,
 				5621E75C2F0EFA580059F33A /* Albert Script RunnerUITests */,
@@ -240,6 +246,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				56FE0F4C2F3F890000ADBF45 /* .gitignore in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

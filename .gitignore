@@ -1,0 +1,26 @@
+# --- Python runtimes / venvs ---
+python-runtime/
+python-engine/python-runtime/
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# --- macOS / Xcode ---
+.DS_Store
+DerivedData/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+
+# --- Build artifacts / distribution ---
+build/
+*.app
+*.dmg
+*.zip
+
+# --- Secrets ---
+.env
+*.pem
+*.p12
+*.key
