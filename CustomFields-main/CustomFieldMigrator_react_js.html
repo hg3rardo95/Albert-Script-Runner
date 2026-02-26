@@ -1,0 +1,1734 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Custom Field Migrator (React)</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      max-width: 980px;
+      margin: 28px auto;
+      padding: 0 16px 70px;
+      line-height: 1.35;
+    }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    .muted { opacity: .75; margin: 0 0 16px; }
+    .topbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .right { margin-left: auto; }
+    .topbarControls {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .modeToggleLabel {
+      font-size: 12px;
+      opacity: .8;
+      white-space: nowrap;
+    }
+    .modeToggle {
+      position: relative;
+      width: 54px;
+      height: 30px;
+      border-radius: 999px;
+      border: 1px solid #cfcfcf;
+      background: #f3f3f3;
+      padding: 2px;
+      cursor: pointer;
+      flex: 0 0 auto;
+    }
+    .modeToggle:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+    .modeToggleKnob {
+      display: block;
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: #fff;
+      border: 1px solid #d9d9d9;
+      box-shadow: 0 1px 2px rgba(0,0,0,.08);
+      transition: transform .2s ease;
+      transform: translateX(0);
+    }
+    .modeToggle.field .modeToggleKnob {
+      transform: translateX(24px);
+    }
+    button {
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background: #f7f7f7;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.primary { background: #111; color: #fff; border-color: #111; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .step {
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 12px;
+      margin: 10px 0;
+      background: #fff;
+    }
+    .title { font-weight: 650; margin-bottom: 8px; }
+    .iconToggleButton {
+      min-width: 38px;
+      padding: 6px 8px;
+      font-size: 18px;
+      line-height: 1;
+      border-radius: 8px;
+    }
+    .payloadViewer {
+      position: relative;
+      margin-top: 10px;
+    }
+    .payloadViewer .iconToggleButton {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      z-index: 1;
+      background: #fff;
+    }
+    .payloadViewer pre,
+    .payloadViewer textarea {
+      margin: 0;
+    }
+    label { display: block; margin: 8px 0 6px; font-weight: 650; }
+    input[type="text"],
+    input[type="password"],
+    textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    textarea {
+      min-height: 240px;
+      resize: vertical;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+    @media (max-width: 760px) {
+      .grid, .cards { grid-template-columns: 1fr; }
+    }
+    .card {
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      padding: 10px;
+      background: #fafafa;
+    }
+    .cardLabel { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
+    .cardValue { font-size: 14px; margin-top: 4px; word-break: break-word; }
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 6px 0 8px;
+    }
+    .chip {
+      border: 1px solid #d0d0d0;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      background: #f7f7f7;
+      user-select: none;
+    }
+    .chip.selected {
+      border-color: #111;
+      background: #111;
+      color: #fff;
+    }
+    .chip.listOption {
+      cursor: default;
+      background: #fff;
+    }
+    .hint { font-size: 12px; opacity: .8; margin-top: 6px; white-space: pre-wrap; }
+    .error { color: #b00020; font-size: 12px; margin-top: 8px; white-space: pre-wrap; }
+    .ok { color: #0b7a32; font-size: 12px; margin-top: 8px; white-space: pre-wrap; }
+    .statusBanner {
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+    .statusGood {
+      background: #eaf8ee;
+      color: #0f5f2a;
+      border-color: #b9e7c5;
+    }
+    .statusBad {
+      background: #fff0f0;
+      color: #8b0000;
+      border-color: #ffc8c8;
+    }
+    .statusNeutral {
+      background: #f6f6f6;
+      color: #222;
+      border-color: #e0e0e0;
+    }
+    .validateActions {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    .suggestionList {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .suggestionBtn {
+      text-align: left;
+      border: 1px solid #d8d8d8;
+      border-radius: 8px;
+      padding: 10px;
+      background: #f9f9f9;
+      cursor: pointer;
+    }
+    .suggestionBtn:hover {
+      border-color: #111;
+      background: #fff;
+    }
+    .suggestionBtn.selected {
+      border-color: #1f7a3b;
+      background: #eaf8ee;
+    }
+    .suggestionTitle {
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .suggestionMeta {
+      margin-top: 4px;
+      font-size: 12px;
+      opacity: .85;
+    }
+    .ctaRow {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 650;
+      border: 1px solid transparent;
+    }
+    .badge-exact {
+      background: #ffe6e6;
+      color: #8b0000;
+      border-color: #ffc6c6;
+    }
+    .badge-close {
+      background: #fff4e5;
+      color: #8a4b00;
+      border-color: #ffd6a5;
+    }
+    .badge-possible {
+      background: #fffde8;
+      color: #7a6a00;
+      border-color: #f2e6a0;
+    }
+    .badge-low {
+      background: #edf4ff;
+      color: #1b4e94;
+      border-color: #cadeff;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f7f7f7; }
+    tr.row-exact { background: #fff3f3; }
+    tr.row-close { background: #fff8f0; }
+    tr.row-possible { background: #fffef2; }
+    .optionsGrid {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: flex-start;
+    }
+    .optionChipItem {
+      border: 1px solid #ddd;
+      border-radius: 999px;
+      padding: 8px 10px;
+      font-size: 12px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      user-select: none;
+      width: fit-content;
+      max-width: 100%;
+      line-height: 1.3;
+    }
+    .optionChipItem.selected {
+      border-color: #1b6f2a;
+      background: #edf9f0;
+    }
+    .optionChipItem.excluded {
+      border-color: #d8d8d8;
+      background: #f5f5f5;
+      color: #777;
+    }
+    .optionChipText {
+      font-size: 14px;
+      white-space: normal;
+      word-break: break-word;
+    }
+    pre {
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+    }
+    pre.jwtExpired {
+      border-color: #b00020;
+      background: #fff5f5;
+      color: #b00020;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useEffect, useMemo, useRef, useState } = React;
+
+    const API_URLS = {
+      "Sandbox": "https://sandbox.albertinvent.com",
+      "Production": "https://app.albertinvent.com",
+      "Dev Environment": "https://dev.albertinventdev.com"
+    };
+    const CLOSE_THRESHOLD = 0.8;
+    const POSSIBLE_THRESHOLD = 0.6;
+
+    function baseUrl(envChoice) {
+      return (API_URLS[envChoice] || "").replace(/\/+$/, "");
+    }
+
+    function decodeJwt(token) {
+      const parts = token.split(".");
+      if (parts.length !== 3) return null;
+      try {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+        return {
+          tenantId: payload.tenantId,
+          partition: payload.partition,
+          class: payload.class,
+          name: payload.name,
+          email: payload.email,
+          iss: payload.iss,
+          exp: payload.exp
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    function formatJwtInfo(info) {
+      if (!info) return null;
+      const out = { ...info };
+      if ("exp" in out) delete out.exp;
+      const expMs = Number(info.exp) * 1000;
+      if (Number.isFinite(expMs)) out.expiration = new Date(expMs).toLocaleString();
+      return out;
+    }
+
+    function isJwtExpiredByDay(info) {
+      const expMs = Number(info?.exp) * 1000;
+      if (!Number.isFinite(expMs)) return false;
+      const expDay = new Date(expMs);
+      expDay.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return expDay.getTime() < today.getTime();
+    }
+
+    function inferEnvironmentFromIssuer(iss) {
+      const raw = String(iss || "").trim();
+      if (!raw) return "";
+
+      let host = raw.toLowerCase();
+      try {
+        const parsed = new URL(raw);
+        host = (parsed.hostname || "").toLowerCase();
+      } catch {
+        // Not a full URL; fall back to direct suffix matching on the raw issuer text.
+      }
+
+      if (host.endsWith(".demo")) return "Sandbox";
+      if (host.endsWith(".app2")) return "Production";
+      if (host.endsWith(".dev")) return "Dev Environment";
+      return "";
+    }
+
+    function pickFirst(field, keys) {
+      for (const key of keys) {
+        const val = field[key];
+        if (val !== undefined && val !== null && val !== "") return val;
+      }
+      return null;
+    }
+
+    function extractErrorMessages(raw) {
+      const messages = [];
+      const seen = new Set();
+
+      function pushMessage(msg) {
+        const text = String(msg || "").trim();
+        if (!text || seen.has(text)) return;
+        seen.add(text);
+        messages.push(text);
+      }
+
+      function walk(value) {
+        if (value === null || value === undefined) return;
+        if (typeof value === "string") return;
+        if (Array.isArray(value)) {
+          value.forEach(walk);
+          return;
+        }
+        if (typeof value === "object") {
+          if (typeof value.msg === "string") pushMessage(value.msg);
+          if (typeof value.message === "string") pushMessage(value.message);
+          Object.values(value).forEach(walk);
+        }
+      }
+
+      let parsed = raw;
+      if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        if (!trimmed) return "(empty response body)";
+        try { parsed = JSON.parse(trimmed); }
+        catch { return trimmed; }
+      }
+
+      walk(parsed);
+      if (messages.length) return messages.join("\n");
+      if (typeof parsed === "string") return parsed;
+      try { return JSON.stringify(parsed, null, 2); }
+      catch { return String(parsed); }
+    }
+
+    function normalizeCustomField(data) {
+      if (!data || typeof data !== "object") return null;
+      if (data.item && typeof data.item === "object") return data.item;
+      if (data.customField && typeof data.customField === "object") return data.customField;
+      if (Array.isArray(data.items) && data.items.length) return data.items[0];
+      return data;
+    }
+
+    function extractListOptionNames(items) {
+      if (!Array.isArray(items)) return [];
+      const names = items
+        .map((item) => {
+          if (item === null || item === undefined) return "";
+          if (typeof item === "string") return item.trim();
+          if (typeof item !== "object") return String(item).trim();
+          const name = pickFirst(item, ["name", "label", "labelName", "value", "displayName"]);
+          return name ? String(name).trim() : "";
+        })
+        .filter(Boolean);
+      return [...new Set(names)];
+    }
+
+    function makeCreatePayload(sourceField) {
+      const payload = { ...sourceField };
+      const removeKeys = [
+        "id", "albertId", "ctfId", "customFieldId", "fieldId", "guid", "uuid",
+        "tenantId", "partition", "createdAt", "updatedAt", "createdBy", "updatedBy",
+        "created", "Created", "updated", "Updated", "status", "Status", "deleted", "Deleted", "deletedAt", "DeletedAt", "archived", "Archived", "_id", "__v", "version",
+        "options", "listOptions", "values", "allowedValues", "items"
+      ];
+      for (const key of removeKeys) delete payload[key];
+      Object.keys(payload).forEach((key) => {
+        if (payload[key] === undefined) delete payload[key];
+      });
+      if (String(payload.type || "").toLowerCase() !== "list") {
+        delete payload.multiselect;
+        delete payload.category;
+      }
+      return payload;
+    }
+
+    function similarity(a, b) {
+      const sa = String(a || "").toLowerCase();
+      const sb = String(b || "").toLowerCase();
+      if (!sa || !sb) return 0;
+      const dp = Array(sa.length + 1).fill(0).map(() => Array(sb.length + 1).fill(0));
+      for (let i = 0; i <= sa.length; i++) dp[i][0] = i;
+      for (let j = 0; j <= sb.length; j++) dp[0][j] = j;
+      for (let i = 1; i <= sa.length; i++) {
+        for (let j = 1; j <= sb.length; j++) {
+          const cost = sa[i - 1] === sb[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+        }
+      }
+      return 1 - (dp[sa.length][sb.length] / (Math.max(sa.length, sb.length) || 1));
+    }
+
+    function classifyMatch(fieldName, itemName, score) {
+      if (String(fieldName || "").trim().toLowerCase() === String(itemName || "").trim().toLowerCase()) return "exact";
+      if (score >= CLOSE_THRESHOLD) return "close";
+      if (score >= POSSIBLE_THRESHOLD) return "possible";
+      return "low";
+    }
+
+    function isCtfId(value) {
+      return /^CTF\d+$/i.test(String(value || "").trim());
+    }
+
+    function normalizeStatus(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function hiddenRank(value) {
+      if (value === false) return 2;
+      if (value === true) return 0;
+      return 1;
+    }
+
+    function scoreLabelNameMatch(query, labelName) {
+      const q = String(query || "").trim().toLowerCase();
+      const label = String(labelName || "").trim().toLowerCase();
+      if (!q || !label) return 0;
+      let score = similarity(q, label);
+      if (q === label) score += 1;
+      else if (label.includes(q)) score += 0.4;
+      return score;
+    }
+
+    function singularizeModule(service) {
+      const map = {
+        inventories: "inventory",
+        tasks: "task",
+        lots: "lot",
+        datatemplates: "data template",
+        parametergroups: "parameter group",
+        projects: "project",
+        users: "user"
+      };
+      const key = String(service || "").trim().toLowerCase();
+      if (!key) return "unknown";
+      if (map[key]) return map[key];
+      if (key.endsWith("ies")) return `${key.slice(0, -3)}y`;
+      if (key.endsWith("s")) return key.slice(0, -1);
+      return key;
+    }
+
+    function normalizeServiceKey(service) {
+      return String(service || "").trim().toLowerCase();
+    }
+
+    function normalizeTextKey(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function getFieldCategory(field) {
+      return String(field?.category || field?.listCategory || "").trim();
+    }
+
+    function uniqueNamesByNormalizedKey(names) {
+      const out = [];
+      const seen = new Set();
+      for (const name of names || []) {
+        const key = normalizeTextKey(name);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        out.push(String(name).trim());
+      }
+      return out;
+    }
+
+    function orderPreviewPayload(payload) {
+      if (!payload || typeof payload !== "object" || Array.isArray(payload)) return {};
+      const ordered = {};
+      const used = new Set();
+      const isList = String(payload.type || "").toLowerCase() === "list";
+
+      const addIfPresent = (key) => {
+        if (Object.prototype.hasOwnProperty.call(payload, key)) {
+          ordered[key] = payload[key];
+          used.add(key);
+        }
+      };
+
+      addIfPresent("name");
+      addIfPresent("labelName");
+      addIfPresent("type");
+      addIfPresent("service");
+
+      if (isList) {
+        addIfPresent("category");
+        addIfPresent("multiselect");
+      }
+
+      addIfPresent("entityCategory");
+      addIfPresent("ui_components");
+      addIfPresent("min");
+      addIfPresent("max");
+
+      Object.keys(payload)
+        .filter((key) => !used.has(key))
+        .sort((a, b) => a.localeCompare(b))
+        .forEach((key) => {
+          ordered[key] = payload[key];
+        });
+
+      return ordered;
+    }
+
+    async function fetchCustomFieldById(envChoice, token, ctfId) {
+      const safeId = encodeURIComponent(ctfId.trim());
+      const url = `${baseUrl(envChoice)}/api/v3/customfields/${safeId}`;
+      const resp = await fetch(url, { method: "GET", headers: { "Authorization": `Bearer ${token.trim()}` } });
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      return { status: resp.status, text, data };
+    }
+
+    async function fetchCustomFields(envChoice, token) {
+      const q = new URLSearchParams({ limit: "200" });
+      const url = `${baseUrl(envChoice)}/api/v3/customfields/?${q.toString()}`;
+      const resp = await fetch(url, { method: "GET", headers: { "Authorization": `Bearer ${token.trim()}` } });
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      const items = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : (Array.isArray(data?.Items) ? data.Items : []));
+      return { status: resp.status, text, items };
+    }
+
+    function getCustomFieldId(item) {
+      return String(
+        pickFirst(item || {}, ["id", "albertId", "ctfId", "customFieldId", "fieldId"]) || ""
+      ).trim();
+    }
+
+    async function fetchListOptions(envChoice, token, listType) {
+      const q = new URLSearchParams({
+        limit: "100",
+        listType: String(listType || "").trim(),
+        orderBy: "asc"
+      });
+      const url = `${baseUrl(envChoice)}/api/v3/lists?${q.toString()}`;
+      const resp = await fetch(url, { method: "GET", headers: { "Authorization": `Bearer ${token.trim()}` } });
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      const items = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : (Array.isArray(data?.Items) ? data.Items : []));
+      return { status: resp.status, text, items };
+    }
+
+    async function sendCreateField(envChoice, token, payload) {
+      const url = `${baseUrl(envChoice)}/api/v3/customfields`;
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token.trim()}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      return { status: resp.status, text, data };
+    }
+
+    async function sendListOption(envChoice, token, name, listType, category) {
+      const url = `${baseUrl(envChoice)}/api/v3/lists`;
+      const payload = { name, listType, category };
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token.trim()}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const text = await resp.text();
+      return { status: resp.status, text, payload };
+    }
+
+    function App() {
+      const [migrationMode, setMigrationMode] = useState("field");
+      const [sourceEnv, setSourceEnv] = useState(localStorage.getItem("cfm_source_env") || "");
+      const [sourceToken, setSourceToken] = useState(localStorage.getItem("cfm_source_token") || "");
+      const [targetEnv, setTargetEnv] = useState(localStorage.getItem("cfm_target_env") || "");
+      const [targetToken, setTargetToken] = useState(localStorage.getItem("cfm_target_token") || "");
+      const [sourceFieldId, setSourceFieldId] = useState(localStorage.getItem("cfm_source_field_id") || "");
+      const [resolvedSourceFieldId, setResolvedSourceFieldId] = useState("");
+      const [lookupSuggestions, setLookupSuggestions] = useState([]);
+      const [selectedSuggestionId, setSelectedSuggestionId] = useState("");
+
+      const [sourceJwtInfo, setSourceJwtInfo] = useState(decodeJwt((localStorage.getItem("cfm_source_token") || "").trim()));
+      const [targetJwtInfo, setTargetJwtInfo] = useState(decodeJwt((localStorage.getItem("cfm_target_token") || "").trim()));
+
+      const [loading, setLoading] = useState(false);
+      const [validateError, setValidateError] = useState("");
+      const [fieldDetailsError, setFieldDetailsError] = useState("");
+
+      const [sourceField, setSourceField] = useState(null);
+      const [createPayload, setCreatePayload] = useState(null);
+      const [optionPayloads, setOptionPayloads] = useState([]);
+
+      const [exactNameExists, setExactNameExists] = useState(false);
+      const [similarMatches, setSimilarMatches] = useState([]);
+
+      const [migrationStatus, setMigrationStatus] = useState("");
+      const [migrationStatusType, setMigrationStatusType] = useState("");
+      const [migrationErrorPayload, setMigrationErrorPayload] = useState("");
+      const [fieldMigrated, setFieldMigrated] = useState(false);
+      const [payloadEditUnlocked, setPayloadEditUnlocked] = useState(false);
+      const [payloadDraft, setPayloadDraft] = useState("");
+      const [listMigrationStarted, setListMigrationStarted] = useState(false);
+      const [listMigrationInProgress, setListMigrationInProgress] = useState(false);
+      const [listMigrationProcessed, setListMigrationProcessed] = useState(0);
+      const [listMigrationTotal, setListMigrationTotal] = useState(0);
+      const [listMigrationSuccess, setListMigrationSuccess] = useState(0);
+      const [listMigrationFailures, setListMigrationFailures] = useState([]);
+      const [existingInTargetOptionNames, setExistingInTargetOptionNames] = useState([]);
+      const [targetOnlyOptionNames, setTargetOnlyOptionNames] = useState([]);
+      const [showExistingInTarget, setShowExistingInTarget] = useState(false);
+      const [showTargetOnlyOptions, setShowTargetOnlyOptions] = useState(false);
+      const [showModeToggleText, setShowModeToggleText] = useState(false);
+      const [showSourceExtra, setShowSourceExtra] = useState(false);
+      const [optionSelection, setOptionSelection] = useState({});
+      const [shouldScrollToResults, setShouldScrollToResults] = useState(false);
+      const resultsRef = useRef(null);
+      const migrationStatusRef = useRef(null);
+      const listMigrationRef = useRef(null);
+
+      const sourceJwtExpired = useMemo(() => isJwtExpiredByDay(sourceJwtInfo), [sourceJwtInfo]);
+
+      const targetJwtExpired = useMemo(() => isJwtExpiredByDay(targetJwtInfo), [targetJwtInfo]);
+
+      const previewPayload = useMemo(() => orderPreviewPayload(createPayload || {}), [createPayload]);
+      const previewText = useMemo(() => JSON.stringify(previewPayload, null, 2), [previewPayload]);
+      const payloadDraftError = useMemo(() => {
+        if (!payloadEditUnlocked) return "";
+        try {
+          const parsed = JSON.parse(payloadDraft);
+          if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+            return "Edited payload must be a JSON object.";
+          }
+          return "";
+        } catch (err) {
+          return `Invalid JSON: ${String(err?.message || err)}`;
+        }
+      }, [payloadEditUnlocked, payloadDraft]);
+
+      const validationRan = migrationMode === "listOptions" ? !!sourceField : (!!sourceField && !!createPayload);
+      const validationApproved = migrationMode === "listOptions" ? validationRan : (validationRan && !exactNameExists);
+      const selectedOptionPayloads = useMemo(
+        () => optionPayloads.filter((opt) => optionSelection[opt.name] !== false),
+        [optionPayloads, optionSelection]
+      );
+
+      useEffect(() => {
+        if (!validationRan || !shouldScrollToResults || !resultsRef.current) return;
+        resultsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        setShouldScrollToResults(false);
+      }, [validationRan, shouldScrollToResults]);
+
+      const sourceFieldDetails = useMemo(() => {
+        if (!sourceField) return null;
+        const type = String(sourceField.type || createPayload?.type || "");
+        const isList = type.toLowerCase() === "list";
+        const options = type.toLowerCase() === "list" ? optionPayloads.map(x => x.name) : [];
+        return {
+          id: sourceField.id || sourceField.albertId || sourceField.ctfId || sourceField.customFieldId || resolvedSourceFieldId || sourceFieldId,
+          name: sourceField.name || createPayload?.name || "",
+          labelName: sourceField.labelName || createPayload?.labelName || "",
+          service: sourceField.service || createPayload?.service || "",
+          type,
+          isList,
+          required: String(!!(sourceField.required ?? createPayload?.required)),
+          hidden: String(!!(sourceField.hidden ?? createPayload?.hidden)),
+          search: String(!!(sourceField.search ?? createPayload?.search)),
+          multiselect: isList ? String(!!(sourceField.multiselect ?? createPayload?.multiselect)) : "",
+          category: sourceField.category || sourceField.listCategory || createPayload?.category || "n/a",
+          optionCount: options.length,
+          optionNames: options,
+          entityCategory: Array.isArray(sourceField.entityCategory) ? sourceField.entityCategory : (Array.isArray(createPayload?.entityCategory) ? createPayload.entityCategory : [])
+        };
+      }, [sourceField, createPayload, sourceFieldId, optionPayloads, resolvedSourceFieldId]);
+
+      const sourceFieldSummary = useMemo(() => {
+        if (!sourceFieldDetails) return "";
+        const label = sourceFieldDetails.labelName || sourceFieldDetails.name || "This field";
+        const type = sourceFieldDetails.type || "unknown";
+        const moduleSingular = singularizeModule(sourceFieldDetails.service);
+        if (migrationMode === "listOptions") return `Target field ${label} is the ${type} field in the ${moduleSingular} module.`;
+        return `${label} is the ${type} field in the ${moduleSingular} module.`;
+      }, [sourceFieldDetails, migrationMode]);
+
+      const canMigrateField = validationApproved && !loading;
+      const listOptionsMigrationAllowed = migrationMode === "listOptions" ? true : (fieldMigrated || exactNameExists);
+      const canMigrateListOptions = validationRan && !loading && !!sourceFieldDetails?.isList && !fieldDetailsError && selectedOptionPayloads.length > 0 && listOptionsMigrationAllowed;
+      const showListOptionComparisonDetails = migrationMode === "listOptions" || (migrationMode === "field" && exactNameExists);
+
+      function persistFields(next = {}) {
+        if ("sourceEnv" in next) localStorage.setItem("cfm_source_env", next.sourceEnv);
+        if ("sourceToken" in next) localStorage.setItem("cfm_source_token", next.sourceToken);
+        if ("targetEnv" in next) localStorage.setItem("cfm_target_env", next.targetEnv);
+        if ("targetToken" in next) localStorage.setItem("cfm_target_token", next.targetToken);
+        if ("sourceFieldId" in next) localStorage.setItem("cfm_source_field_id", next.sourceFieldId);
+      }
+
+      function toggleMigrationMode() {
+        const nextMode = migrationMode === "listOptions" ? "field" : "listOptions";
+        setMigrationMode(nextMode);
+        clearDerivedState();
+      }
+
+      function clearDerivedState() {
+        setValidateError("");
+        setFieldDetailsError("");
+        setSourceField(null);
+        setResolvedSourceFieldId("");
+        setLookupSuggestions([]);
+        setSelectedSuggestionId("");
+        setCreatePayload(null);
+        setPayloadEditUnlocked(false);
+        setPayloadDraft("");
+        setOptionPayloads([]);
+        setOptionSelection({});
+        setExactNameExists(false);
+        setSimilarMatches([]);
+        setFieldMigrated(false);
+        setMigrationStatus("");
+        setMigrationStatusType("");
+        setMigrationErrorPayload("");
+        setListMigrationStarted(false);
+        setListMigrationInProgress(false);
+        setListMigrationProcessed(0);
+        setListMigrationTotal(0);
+        setListMigrationSuccess(0);
+        setListMigrationFailures([]);
+        setExistingInTargetOptionNames([]);
+        setTargetOnlyOptionNames([]);
+        setShowExistingInTarget(false);
+        setShowTargetOnlyOptions(false);
+        setShowSourceExtra(false);
+        setShouldScrollToResults(false);
+      }
+
+      async function runValidationForSourceId(id, srcToken, tgtToken, lookupEnv, lookupToken, lookupRole) {
+        if (migrationMode === "listOptions") {
+            const targetResp = await fetchCustomFieldById(lookupEnv, lookupToken, id);
+            if (targetResp.status === 401 || targetResp.status === 403) return setValidateError(`${lookupRole} bearer token is invalid for this environment.`);
+            if (targetResp.status < 200 || targetResp.status > 299) return setValidateError(`${lookupRole} field lookup failed (${targetResp.status}).`);
+
+            const targetField = normalizeCustomField(targetResp.data);
+            if (!targetField || typeof targetField !== "object") return setValidateError(`${lookupRole} field response could not be parsed.`);
+
+            const targetTypeKey = normalizeTextKey(targetField.type);
+            const targetLabelName = String(targetField.labelName || "").trim();
+            const targetService = String(targetField.service || "").trim();
+            const targetCategory = getFieldCategory(targetField);
+            const mismatchReasons = [];
+
+            if (targetTypeKey !== "list") mismatchReasons.push("Target field type is not `list`.");
+            if (!targetLabelName) mismatchReasons.push("Target field is missing `labelName`.");
+            if (!targetService) mismatchReasons.push("Target field is missing `service`.");
+            if (!targetCategory) mismatchReasons.push("Target field is missing `category`.");
+
+            let optionsToCreate = [];
+            let existingInTarget = [];
+            let targetOnly = [];
+            if (!mismatchReasons.length) {
+              const sourceCatalog = await fetchCustomFields(sourceEnv, srcToken);
+              if (sourceCatalog.status === 401 || sourceCatalog.status === 403) return setValidateError("Source bearer token is invalid for source validation lookup.");
+              if (sourceCatalog.status < 200 || sourceCatalog.status > 299) return setValidateError(`Source field lookup failed (${sourceCatalog.status}).`);
+
+              const targetLabelKey = normalizeTextKey(targetLabelName);
+              const targetServiceKey = normalizeServiceKey(targetService);
+              const targetCategoryKey = normalizeTextKey(targetCategory);
+              const sourceCandidates = (sourceCatalog.items || []).filter((item) => {
+                return (
+                  normalizeTextKey(item?.type) === "list" &&
+                  normalizeTextKey(item?.labelName) === targetLabelKey &&
+                  normalizeServiceKey(item?.service) === targetServiceKey &&
+                  normalizeTextKey(getFieldCategory(item)) === targetCategoryKey
+                );
+              });
+
+              if (!sourceCandidates.length) {
+                mismatchReasons.push("No source field found with the same labelName, service, category, and type `list`.");
+              } else if (sourceCandidates.length > 1) {
+                mismatchReasons.push("Multiple source list fields matched labelName, service, and category. Narrow the source data before migrating options.");
+              } else {
+                const matchedSourceField = sourceCandidates[0];
+                const sourceListType = String(matchedSourceField?.name || "").trim();
+                const targetListType = String(targetField?.name || "").trim();
+                if (!sourceListType) {
+                  mismatchReasons.push("Matched source list field is missing `name` and cannot be used to read list options.");
+                } else if (!targetListType) {
+                  mismatchReasons.push("Target field is missing `name` and cannot be used as listType for migration.");
+                } else {
+                  const sourceListResp = await fetchListOptions(sourceEnv, srcToken, sourceListType);
+                  if (sourceListResp.status === 401 || sourceListResp.status === 403) return setValidateError("Source bearer token is invalid for source list options lookup.");
+                  if (sourceListResp.status < 200 || sourceListResp.status > 299) return setValidateError(`Source list option lookup failed (${sourceListResp.status}).`);
+
+                  const targetListResp = await fetchListOptions(targetEnv, tgtToken, targetListType);
+                  if (targetListResp.status === 401 || targetListResp.status === 403) return setValidateError("Target bearer token is invalid for target list options lookup.");
+                  if (targetListResp.status < 200 || targetListResp.status > 299) return setValidateError(`Target list option lookup failed (${targetListResp.status}).`);
+
+                  const sourceOptionNames = extractListOptionNames(sourceListResp.items);
+                  const targetOptionNames = extractListOptionNames(targetListResp.items);
+                  const sourceMap = new Map(sourceOptionNames.map((name) => [normalizeTextKey(name), name]));
+                  const targetMap = new Map(targetOptionNames.map((name) => [normalizeTextKey(name), name]));
+
+                  const migratableOptionNames = [];
+                  for (const name of sourceOptionNames) {
+                    const key = normalizeTextKey(name);
+                    if (!key) continue;
+                    if (targetMap.has(key)) {
+                      existingInTarget.push(targetMap.get(key));
+                    } else {
+                      migratableOptionNames.push(name);
+                    }
+                  }
+
+                  targetOnly = targetOptionNames.filter((name) => {
+                    const key = normalizeTextKey(name);
+                    return key && !sourceMap.has(key);
+                  });
+                  existingInTarget = uniqueNamesByNormalizedKey(existingInTarget);
+                  targetOnly = uniqueNamesByNormalizedKey(targetOnly);
+
+                  const targetCategoryToUse = getFieldCategory(targetField) || targetCategory;
+                  optionsToCreate = migratableOptionNames.map((name) => ({
+                    name,
+                    listType: targetListType,
+                    category: targetCategoryToUse
+                  }));
+                }
+              }
+            }
+
+            setSourceField(targetField);
+            setCreatePayload(null);
+            setPayloadEditUnlocked(false);
+            setPayloadDraft("");
+            setOptionPayloads(optionsToCreate);
+            setOptionSelection(Object.fromEntries(optionsToCreate.map((opt) => [opt.name, true])));
+            setExistingInTargetOptionNames(existingInTarget);
+            setTargetOnlyOptionNames(targetOnly);
+            setShowExistingInTarget(false);
+            setShowTargetOnlyOptions(false);
+            setExactNameExists(false);
+            setSimilarMatches([]);
+            setFieldMigrated(false);
+            setFieldDetailsError(mismatchReasons.join("\n"));
+            setShouldScrollToResults(true);
+            setListMigrationStarted(false);
+            setListMigrationInProgress(false);
+            setListMigrationProcessed(0);
+            setListMigrationTotal(0);
+            setListMigrationSuccess(0);
+            setListMigrationFailures([]);
+            return;
+          }
+        const src = await fetchCustomFieldById(sourceEnv, srcToken, id);
+        if (src.status === 401 || src.status === 403) return setValidateError("Source bearer token is invalid for this environment.");
+        if (src.status < 200 || src.status > 299) return setValidateError(`Source field lookup failed (${src.status}).`);
+
+        const source = normalizeCustomField(src.data);
+        if (!source || typeof source !== "object") return setValidateError("Source field response could not be parsed.");
+
+        const payload = makeCreatePayload(source);
+        const fieldName = String(payload.name || source.name || "").trim();
+        const labelName = String(payload.labelName || source.labelName || "").trim();
+        if (!fieldName) return setValidateError("Source field is missing `name`; cannot migrate.");
+
+        const listCategory = String(payload.category || source.category || source.listCategory || "businessDefined");
+        let listOptionNames = [];
+        if (String(payload.type || source.type || "").toLowerCase() === "list") {
+          const srcList = await fetchListOptions(sourceEnv, srcToken, fieldName);
+          if (srcList.status === 401 || srcList.status === 403) return setValidateError("Source bearer token is invalid for source list options lookup.");
+          if (srcList.status < 200 || srcList.status > 299) return setValidateError(`Source list option lookup failed (${srcList.status}).`);
+          listOptionNames = extractListOptionNames(srcList.items);
+        }
+        let optionsToCreate = listOptionNames.map((name) => ({ name, listType: fieldName, category: listCategory }));
+        let existingInTarget = [];
+        let targetOnly = [];
+
+        const tgt = await fetchCustomFields(targetEnv, tgtToken);
+        if (tgt.status === 401 || tgt.status === 403) return setValidateError("Target bearer token is invalid for this environment.");
+        if (tgt.status < 200 || tgt.status > 299) return setValidateError(`Target field lookup failed (${tgt.status}).`);
+
+        let exact = false;
+        const matches = [];
+        let exactMatchTargetField = null;
+        const sourceServiceKey = normalizeServiceKey(payload.service || source.service);
+        for (const item of tgt.items || []) {
+          const itemServiceKey = normalizeServiceKey(item?.service);
+          if (itemServiceKey !== sourceServiceKey) continue;
+          const itemName = String(item?.name || "").trim();
+          const itemLabel = String(item?.labelName || "").trim();
+          const nameScore = similarity(fieldName, itemName);
+          const labelScore = similarity(labelName || fieldName, itemLabel || itemName);
+          const bestScore = Math.max(nameScore, labelScore);
+          const matchType = classifyMatch(fieldName, itemName, bestScore);
+          if (matchType === "exact") {
+            exact = true;
+            if (!exactMatchTargetField) exactMatchTargetField = item;
+          }
+          if (bestScore >= POSSIBLE_THRESHOLD || matchType === "exact") {
+            matches.push({
+              name: itemName,
+              labelName: itemLabel,
+              nameScore: nameScore.toFixed(2),
+              labelScore: labelScore.toFixed(2),
+              bestScore: bestScore.toFixed(2),
+              matchType
+            });
+          }
+        }
+
+        if (String(payload.type || source.type || "").toLowerCase() === "list" && exact && exactMatchTargetField) {
+          const targetListType = String(exactMatchTargetField?.name || "").trim();
+          const targetCategory = getFieldCategory(exactMatchTargetField) || listCategory;
+          if (targetListType) {
+            const targetListResp = await fetchListOptions(targetEnv, tgtToken, targetListType);
+            if (targetListResp.status === 401 || targetListResp.status === 403) return setValidateError("Target bearer token is invalid for target list options lookup.");
+            if (targetListResp.status < 200 || targetListResp.status > 299) return setValidateError(`Target list option lookup failed (${targetListResp.status}).`);
+            const targetOptionNames = extractListOptionNames(targetListResp.items);
+            const sourceMap = new Map(listOptionNames.map((name) => [normalizeTextKey(name), name]));
+            const targetMap = new Map(targetOptionNames.map((name) => [normalizeTextKey(name), name]));
+            const migratableOptionNames = [];
+            for (const name of listOptionNames) {
+              const key = normalizeTextKey(name);
+              if (!key) continue;
+              if (targetMap.has(key)) {
+                existingInTarget.push(targetMap.get(key));
+              } else {
+                migratableOptionNames.push(name);
+              }
+            }
+            targetOnly = targetOptionNames.filter((name) => {
+              const key = normalizeTextKey(name);
+              return key && !sourceMap.has(key);
+            });
+            existingInTarget = uniqueNamesByNormalizedKey(existingInTarget);
+            targetOnly = uniqueNamesByNormalizedKey(targetOnly);
+            optionsToCreate = migratableOptionNames.map((name) => ({
+              name,
+              listType: targetListType,
+              category: targetCategory
+            }));
+          }
+        }
+
+        matches.sort((a, b) => Number(b.bestScore) - Number(a.bestScore));
+
+        setFieldDetailsError("");
+        setSourceField(source);
+        setCreatePayload(payload);
+        setPayloadEditUnlocked(false);
+        setPayloadDraft("");
+        setOptionPayloads(optionsToCreate);
+        setOptionSelection(Object.fromEntries(optionsToCreate.map((opt) => [opt.name, true])));
+        setExistingInTargetOptionNames(existingInTarget);
+        setTargetOnlyOptionNames(targetOnly);
+        setShowExistingInTarget(false);
+        setShowTargetOnlyOptions(false);
+        setFieldMigrated(false);
+        setExactNameExists(exact);
+        setSimilarMatches(matches);
+        setShouldScrollToResults(true);
+        setListMigrationStarted(false);
+        setListMigrationInProgress(false);
+        setListMigrationProcessed(0);
+        setListMigrationTotal(0);
+        setListMigrationSuccess(0);
+        setListMigrationFailures([]);
+      }
+
+      async function resolveSourceByLabelName(env, token, labelInput, lookupRole) {
+        const lookup = await fetchCustomFields(env, token);
+        if (lookup.status === 401 || lookup.status === 403) {
+          setValidateError(`${lookupRole} bearer token is invalid for this environment.`);
+          return [];
+        }
+        if (lookup.status < 200 || lookup.status > 299) {
+          setValidateError(`${lookupRole} field list lookup failed (${lookup.status}).`);
+          return [];
+        }
+
+        const candidates = (lookup.items || [])
+          .map((item) => {
+            const id = getCustomFieldId(item);
+            const labelName = String(item?.labelName || "").trim();
+            const status = String(item?.status || "").trim() || "unknown";
+            if (normalizeStatus(status) === "inactive") return null;
+            if (!id || !labelName) return null;
+            const score = scoreLabelNameMatch(labelInput, labelName);
+            if (score <= 0.6) return null;
+            return {
+              id,
+              labelName,
+              module: singularizeModule(item?.service),
+              type: String(item?.type || "").trim() || "unknown",
+              hidden: item?.hidden,
+              score
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => {
+            const hiddenDiff = hiddenRank(b.hidden) - hiddenRank(a.hidden);
+            if (hiddenDiff) return hiddenDiff;
+            if (b.score !== a.score) return b.score - a.score;
+            return a.labelName.localeCompare(b.labelName);
+          })
+          .slice(0, 5);
+
+        if (!candidates.length) {
+          setValidateError(`No ${String(lookupRole || "").toLowerCase()} labelName matches were found.`);
+          return [];
+        }
+        setResolvedSourceFieldId("");
+        setSelectedSuggestionId("");
+        setLookupSuggestions(candidates);
+        return candidates;
+      }
+
+      async function handleValidate() {
+        const idOrLabel = sourceFieldId.trim();
+        clearDerivedState();
+
+        const srcToken = sourceToken.trim();
+        const tgtToken = targetToken.trim();
+        const lookupOnTarget = migrationMode === "listOptions";
+        const lookupEnv = lookupOnTarget ? targetEnv : sourceEnv;
+        const lookupToken = lookupOnTarget ? tgtToken : srcToken;
+        const lookupRole = lookupOnTarget ? "Target" : "Source";
+
+        if (!idOrLabel) return setValidateError(`${lookupRole} custom field ID or labelName is required.`);
+
+        if (!sourceEnv) return setValidateError("Please select source environment.");
+        if (!targetEnv) return setValidateError("Please select target environment.");
+        if (!srcToken) return setValidateError("Source bearer token is required.");
+        if (!tgtToken) return setValidateError("Target bearer token is required.");
+
+        const sourceJwt = decodeJwt(srcToken);
+        const targetJwt = decodeJwt(tgtToken);
+        if (!sourceJwt) return setValidateError("Source token does not appear to be a JWT (expected 3 segments).");
+        if (!targetJwt) return setValidateError("Target token does not appear to be a JWT (expected 3 segments).");
+
+        setSourceJwtInfo(sourceJwt);
+        setTargetJwtInfo(targetJwt);
+        persistFields({ sourceEnv, sourceToken, targetEnv, targetToken, sourceFieldId: idOrLabel });
+
+        setLoading(true);
+        try {
+          if (isCtfId(idOrLabel)) {
+            setLookupSuggestions([]);
+            setSelectedSuggestionId("");
+            setResolvedSourceFieldId(idOrLabel);
+            await runValidationForSourceId(idOrLabel, srcToken, tgtToken, lookupEnv, lookupToken, lookupRole);
+          } else {
+            await resolveSourceByLabelName(lookupEnv, lookupToken, idOrLabel, lookupRole);
+          }
+        } catch (err) {
+          setValidateError(`Validation failed: ${String(err?.message || err)}`);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function handleSuggestionSelect(item) {
+        const id = String(item?.id || "").trim();
+        if (!id) return;
+
+        clearDerivedState();
+        setLookupSuggestions([item, ...lookupSuggestions.filter((x) => x.id !== id)]);
+        setSelectedSuggestionId(id);
+        setResolvedSourceFieldId(id);
+
+        const srcToken = sourceToken.trim();
+        const tgtToken = targetToken.trim();
+        const lookupOnTarget = migrationMode === "listOptions";
+        const lookupEnv = lookupOnTarget ? targetEnv : sourceEnv;
+        const lookupToken = lookupOnTarget ? tgtToken : srcToken;
+        const lookupRole = lookupOnTarget ? "Target" : "Source";
+        setLoading(true);
+        try {
+          await runValidationForSourceId(id, srcToken, tgtToken, lookupEnv, lookupToken, lookupRole);
+        } catch (err) {
+          setValidateError(`Validation failed: ${String(err?.message || err)}`);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function handleMigrateField() {
+        if (!canMigrateField) return;
+        setMigrationStatus("");
+        setMigrationStatusType("");
+        setMigrationErrorPayload("");
+        setLoading(true);
+
+        try {
+          let payloadToSend = createPayload;
+          if (payloadEditUnlocked) {
+            let parsedPayload = null;
+            try {
+              parsedPayload = JSON.parse(payloadDraft);
+            } catch (err) {
+              setFieldMigrated(false);
+              setMigrationStatus("Field migration blocked. Edited payload JSON is invalid.");
+              setMigrationStatusType("failure");
+              setMigrationErrorPayload(String(err?.message || err));
+              setTimeout(() => migrationStatusRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+              return;
+            }
+            if (!parsedPayload || typeof parsedPayload !== "object" || Array.isArray(parsedPayload)) {
+              setFieldMigrated(false);
+              setMigrationStatus("Field migration blocked. Edited payload must be a JSON object.");
+              setMigrationStatusType("failure");
+              setMigrationErrorPayload("Expected an object like { ... } for POST /api/v3/customfields.");
+              setTimeout(() => migrationStatusRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+              return;
+            }
+            payloadToSend = parsedPayload;
+          }
+
+          const createResp = await sendCreateField(targetEnv, targetToken, payloadToSend);
+
+          if (createResp.status < 200 || createResp.status > 299) {
+            setFieldMigrated(false);
+            setMigrationStatus(`Field create failed (${createResp.status}).`);
+            setMigrationStatusType("failure");
+            setMigrationErrorPayload(extractErrorMessages(createResp.text));
+            setTimeout(() => migrationStatusRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+            return;
+          }
+          setFieldMigrated(true);
+          setMigrationStatus("Field migration complete.");
+          setMigrationStatusType("success");
+          setMigrationErrorPayload("");
+          setTimeout(() => migrationStatusRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+        } catch (err) {
+          setFieldMigrated(false);
+          setMigrationStatus(`Field migration failed: ${String(err?.message || err)}`);
+          setMigrationStatusType("failure");
+          setMigrationErrorPayload(String(err?.stack || err?.message || err));
+          setTimeout(() => migrationStatusRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function handleMigrateListOptions() {
+        if (!canMigrateListOptions) return;
+        setTimeout(() => listMigrationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+        setListMigrationStarted(true);
+        setListMigrationInProgress(true);
+        setListMigrationProcessed(0);
+        setListMigrationTotal(selectedOptionPayloads.length);
+        setListMigrationSuccess(0);
+        setListMigrationFailures([]);
+        setLoading(true);
+        try {
+          const optionsToMigrate = selectedOptionPayloads;
+          let ok = 0;
+          let failed = 0;
+          const failedDetails = [];
+          let processed = 0;
+          for (const opt of optionsToMigrate) {
+            const resp = await sendListOption(targetEnv, targetToken, opt.name, opt.listType, opt.category);
+            if (resp.status >= 200 && resp.status <= 299) {
+              ok += 1;
+            } else {
+              failed += 1;
+              failedDetails.push({
+                optionName: opt.name,
+                status: resp.status,
+                message: extractErrorMessages(resp.text)
+              });
+            }
+            processed += 1;
+            setListMigrationProcessed(processed);
+            setListMigrationSuccess(ok);
+            setListMigrationFailures([...failedDetails]);
+          }
+        } catch (err) {
+          setListMigrationFailures((prev) => [...prev, {
+            optionName: "(request)",
+            status: "error",
+            message: String(err?.stack || err?.message || err)
+          }]);
+        } finally {
+          setListMigrationInProgress(false);
+          setLoading(false);
+        }
+      }
+
+      function copyPreview() {
+        const payloadText = payloadEditUnlocked ? payloadDraft : previewText;
+        navigator.clipboard.writeText(payloadText).catch(() => {});
+      }
+
+      function matchBadge(type) {
+        if (type === "exact") return <span className="badge badge-exact">Exact Name Match</span>;
+        if (type === "close") return <span className="badge badge-close">Close Match</span>;
+        if (type === "possible") return <span className="badge badge-possible">Possible Similar</span>;
+        return <span className="badge badge-low">Low</span>;
+      }
+
+      return (
+        <>
+          <div className="topbar">
+            <h1 style={{ margin: 0 }}>Custom Field Migrator (React)</h1>
+            <div className="topbarControls">
+              {showModeToggleText ? (
+                <div className="modeToggleLabel">
+                  {migrationMode === "field" ? "Toggle for list migration" : "Toggle for custom field migration"}
+                </div>
+              ) : null}
+              <button
+                type="button"
+                className={`modeToggle ${migrationMode === "field" ? "field" : "list"}`}
+                onClick={toggleMigrationMode}
+                onMouseEnter={() => setShowModeToggleText(true)}
+                onMouseLeave={() => setShowModeToggleText(false)}
+                onFocus={() => setShowModeToggleText(true)}
+                onBlur={() => setShowModeToggleText(false)}
+                aria-label={migrationMode === "field" ? "Switch to list option migration" : "Switch to custom field migration"}
+              >
+                <span className="modeToggleKnob"></span>
+              </button>
+              <button type="button" onClick={() => window.location.reload()}>Restart</button>
+            </div>
+          </div>
+          <p className="muted">
+            Use this Custom Field API Builder to migrate a custom field between your environments. Answer the questions below to create the payload for the API.
+          </p>
+
+          <div className="step">
+            <div className="title">Migration Inputs</div>
+            <div className="grid">
+              <div>
+                <label>Source Environment</label>
+                <div className="chips">
+                  {Object.keys(API_URLS).map((env) => (
+                    <span
+                      key={`src-${env}`}
+                      className={`chip ${sourceEnv === env ? "selected" : ""}`}
+                      onClick={() => {
+                        setSourceEnv(env);
+                        persistFields({ sourceEnv: env });
+                      }}
+                    >{env}</span>
+                  ))}
+                </div>
+                <label>Source Bearer Token</label>
+                <input
+                  type="password"
+                  placeholder="Paste source token"
+                  value={sourceToken}
+                  onChange={(e) => {
+                    const token = e.target.value;
+                    const info = decodeJwt(token.trim());
+                    const inferredEnv = inferEnvironmentFromIssuer(info?.iss);
+                    setSourceToken(token);
+                    setSourceJwtInfo(info);
+                    if (inferredEnv) setSourceEnv(inferredEnv);
+                    persistFields(inferredEnv ? { sourceToken: token, sourceEnv: inferredEnv } : { sourceToken: token });
+                  }}
+                />
+                <pre className={sourceJwtExpired ? "jwtExpired" : ""}>{sourceJwtInfo ? JSON.stringify(formatJwtInfo(sourceJwtInfo), null, 2) : ""}</pre>
+              </div>
+
+              <div>
+                <label>Target Environment</label>
+                <div className="chips">
+                  {Object.keys(API_URLS).map((env) => (
+                    <span
+                      key={`tgt-${env}`}
+                      className={`chip ${targetEnv === env ? "selected" : ""}`}
+                      onClick={() => {
+                        setTargetEnv(env);
+                        persistFields({ targetEnv: env });
+                      }}
+                    >{env}</span>
+                  ))}
+                </div>
+                <label>Target Bearer Token</label>
+                <input
+                  type="password"
+                  placeholder="Paste target token"
+                  value={targetToken}
+                  onChange={(e) => {
+                    const token = e.target.value;
+                    const info = decodeJwt(token.trim());
+                    const inferredEnv = inferEnvironmentFromIssuer(info?.iss);
+                    setTargetToken(token);
+                    setTargetJwtInfo(info);
+                    if (inferredEnv) setTargetEnv(inferredEnv);
+                    persistFields(inferredEnv ? { targetToken: token, targetEnv: inferredEnv } : { targetToken: token });
+                  }}
+                />
+                <pre className={targetJwtExpired ? "jwtExpired" : ""}>{targetJwtInfo ? JSON.stringify(formatJwtInfo(targetJwtInfo), null, 2) : ""}</pre>
+              </div>
+            </div>
+
+            <label>{migrationMode === "listOptions" ? "Target Custom Field ID or Name" : "Source Custom Field ID or Name"}</label>
+            <input
+              type="text"
+              placeholder="Example: CTF12345 or Label Name"
+              value={sourceFieldId}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSourceFieldId(v);
+                persistFields({ sourceFieldId: v });
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleValidate();
+                }
+              }}
+            />
+            {lookupSuggestions.length ? (
+              <div className="suggestionList">
+                {lookupSuggestions.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    className={`suggestionBtn ${selectedSuggestionId === item.id ? "selected" : ""}`}
+                    onClick={() => handleSuggestionSelect(item)}
+                    disabled={loading}
+                  >
+                    <div className="suggestionTitle">{item.labelName}</div>
+                    <div className="suggestionMeta">
+                      {item.id} | Module: {item.module || "unknown"} | Type: {item.type || "unknown"} | hidden: {item.hidden === true ? "true" : (item.hidden === false ? "false" : "unknown")}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {!loading && !isCtfId(sourceFieldId.trim()) && lookupSuggestions.length > 0 && lookupSuggestions.length < 2 && !lookupSuggestions.some((item) => Number(item?.score || 0) >= 0.9) ? (
+              <div className="hint">If fewer than 2 options appear and this environment has more than 200 custom fields, this search may miss matches due to the API limit.</div>
+            ) : null}
+            {validateError ? <div className="error">{validateError}</div> : null}
+
+            <div className="validateActions">
+              <button onClick={clearDerivedState} disabled={loading}>Clear Results</button>
+              <button className="primary" onClick={handleValidate} disabled={loading}>{loading ? "Working..." : "Validate"}</button>
+            </div>
+          </div>
+
+          {validationRan ? (
+            <div className="step" ref={resultsRef}>
+              <div className="title">{migrationMode === "listOptions" ? "Target Field Details" : "Source Field Details"}</div>
+              {fieldDetailsError ? (
+                <div className="statusBanner statusBad">{fieldDetailsError}</div>
+              ) : (
+                <div className="statusBanner statusNeutral">{sourceFieldSummary}</div>
+              )}
+
+              <div className="ctaRow">
+                <button onClick={() => setShowSourceExtra(prev => !prev)}>
+                  {showSourceExtra ? "Hide Additional Details" : "Show Additional Details"}
+                </button>
+              </div>
+
+              {showSourceExtra ? (
+                <>
+                  <div className="cards">
+                    <div className="card"><div className="cardLabel">ID</div><div className="cardValue">{sourceFieldDetails?.id || "n/a"}</div></div>
+                    <div className="card"><div className="cardLabel">Name</div><div className="cardValue">{sourceFieldDetails?.name || "n/a"}</div></div>
+                    <div className="card"><div className="cardLabel">Required</div><div className="cardValue">{sourceFieldDetails?.required}</div></div>
+                    <div className="card"><div className="cardLabel">Search</div><div className="cardValue">{sourceFieldDetails?.search}</div></div>
+                    <div className="card"><div className="cardLabel">Hidden</div><div className="cardValue">{sourceFieldDetails?.hidden}</div></div>
+                    <div className="card"><div className="cardLabel">Entity Categories</div><div className="cardValue">{(sourceFieldDetails?.entityCategory || []).join(", ") || "n/a"}</div></div>
+                    {sourceFieldDetails?.isList ? (
+                      <div className="card"><div className="cardLabel">Multiselect</div><div className="cardValue">{sourceFieldDetails?.multiselect}</div></div>
+                    ) : null}
+                    {sourceFieldDetails?.isList ? (
+                      <div className="card"><div className="cardLabel">List Option Count</div><div className="cardValue">{sourceFieldDetails?.optionCount}</div></div>
+                    ) : null}
+                  </div>
+                  {sourceFieldDetails?.isList && (sourceFieldDetails?.optionNames || []).length ? (
+                    <>
+                      <div className="hint">Detected list options from source:</div>
+                      <div className="chips">
+                        {sourceFieldDetails.optionNames.map((option) => (
+                          <span key={option} className="chip listOption">{option}</span>
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+          {validationRan && migrationMode === "field" ? (
+            <div className="step">
+              <div className="title">Duplicate and Similar Name Analysis</div>
+              <div className="hint">Exact name match blocks migration. Close match is score &gt; {CLOSE_THRESHOLD}. Possible similar is score &gt; {POSSIBLE_THRESHOLD}.</div>
+              {exactNameExists ? (
+                <div className="statusBanner statusBad">Exact name already exists in target. Migration of custom field is blocked.</div>
+              ) : (
+                <div className="statusBanner statusGood">No exact name conflict found.</div>
+              )}
+              {similarMatches.length ? (
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Match Level</th>
+                      <th>Name</th>
+                      <th>Label</th>
+                      <th>Name Score</th>
+                      <th>Label Score</th>
+                      <th>Best Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {similarMatches.map((m, idx) => (
+                      <tr key={`${m.name}-${idx}`} className={`row-${m.matchType}`}>
+                        <td>{matchBadge(m.matchType)}</td>
+                        <td>{m.name}</td>
+                        <td>{m.labelName}</td>
+                        <td>{m.nameScore}</td>
+                        <td>{m.labelScore}</td>
+                        <td>{m.bestScore}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="statusBanner statusGood">No fields in target exceeded the possible-similar threshold.</div>
+              )}
+            </div>
+          ) : null}
+
+          {validationApproved && migrationMode === "field" ? (
+            <div className="step">
+              <div className="title">Preview Payload</div>
+              <div className="hint">Shown only after validation is approved. This is the exact body for POST /api/v3/customfields.</div>
+              <div className="payloadViewer">
+                <button
+                  type="button"
+                  className="iconToggleButton"
+                  onClick={() => {
+                    if (payloadEditUnlocked) {
+                      setPayloadEditUnlocked(false);
+                      setPayloadDraft("");
+                    } else {
+                      setPayloadDraft(previewText);
+                      setPayloadEditUnlocked(true);
+                    }
+                  }}
+                  disabled={loading}
+                  aria-label={payloadEditUnlocked ? "Lock payload editing" : "Unlock payload editing"}
+                  title={payloadEditUnlocked ? "Lock payload editing" : "Unlock payload editing"}
+                >
+                  {payloadEditUnlocked ? "🔓" : "🔒"}
+                </button>
+                {payloadEditUnlocked ? (
+                  <textarea
+                    value={payloadDraft}
+                    onChange={(e) => setPayloadDraft(e.target.value)}
+                    spellCheck={false}
+                    aria-label="Editable migration payload"
+                  />
+                ) : (
+                  <pre>{previewText}</pre>
+                )}
+              </div>
+              {payloadEditUnlocked ? (
+                payloadDraftError ? <div className="error">{payloadDraftError}</div> : <div className="ok">Editing unlocked. This JSON will be sent by Migrate Field.</div>
+              ) : null}
+              <div className="ctaRow">
+                <button onClick={copyPreview}>Copy Preview Payload</button>
+                <button className="primary" onClick={handleMigrateField} disabled={!canMigrateField || !!payloadDraftError}>{loading ? "Working..." : "Migrate Field"}</button>
+              </div>
+            </div>
+          ) : null}
+
+          {migrationStatus && migrationMode === "field" ? (
+            <div className="step" ref={migrationStatusRef}>
+              <div className="title">Migration Status</div>
+              <div className={`statusBanner ${migrationStatusType === "failure" ? "statusBad" : "statusGood"}`}>{migrationStatus}</div>
+              {migrationStatusType === "failure" && migrationErrorPayload ? (
+                <pre>{migrationErrorPayload}</pre>
+              ) : null}
+            </div>
+          ) : null}
+
+          {validationRan && (migrationMode === "listOptions" || sourceFieldDetails?.isList) ? (
+            <div className="step" ref={listMigrationRef}>
+              <div className="title">List Option Migration</div>
+              {migrationMode === "field" && fieldMigrated ? (
+                <div className="statusBanner statusGood">Field migration has completed. List options can now be migrated.</div>
+              ) : null}
+              <div className="hint">
+                Selected for migration: {selectedOptionPayloads.length} / {optionPayloads.length}
+              </div>
+              <div className="ctaRow">
+                <button
+                  onClick={() => {
+                    const allSelected = optionPayloads.every((opt) => optionSelection[opt.name] !== false);
+                    const nextValue = !allSelected;
+                    setOptionSelection(Object.fromEntries(optionPayloads.map((opt) => [opt.name, nextValue])));
+                  }}
+                >
+                  {optionPayloads.every((opt) => optionSelection[opt.name] !== false) ? "Unselect All" : "Select All"}
+                </button>
+                <button className="primary" onClick={handleMigrateListOptions} disabled={!canMigrateListOptions}>
+                  {loading ? "Working..." : "Migrate Selected List Options"}
+                </button>
+              </div>
+
+              {listMigrationStarted ? (
+                <>
+                  <div className={`statusBanner ${listMigrationInProgress ? "statusNeutral" : (listMigrationFailures.length ? "statusBad" : "statusGood")}`}>
+                    Migrated {listMigrationProcessed} / {listMigrationTotal} options. Succeeded: {listMigrationSuccess}. Failures: {listMigrationFailures.length}.
+                  </div>
+                  {listMigrationFailures.length ? (
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Option</th>
+                          <th>Status</th>
+                          <th>Error</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {listMigrationFailures.map((item, idx) => (
+                          <tr key={`${item.optionName}-${idx}`}>
+                            <td>{item.optionName}</td>
+                            <td>{item.status}</td>
+                            <td>{item.message}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : null}
+                </>
+              ) : null}
+
+              <div className="optionsGrid">
+                {optionPayloads.map((opt) => {
+                  const selected = optionSelection[opt.name] !== false;
+                  return (
+                    <div
+                      key={opt.name}
+                      className={`optionChipItem ${selected ? "selected" : "excluded"}`}
+                      onClick={() => {
+                        setOptionSelection((prev) => ({ ...prev, [opt.name]: !(prev[opt.name] !== false) }));
+                      }}
+                      title={opt.name}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        onChange={(e) => {
+                          setOptionSelection((prev) => ({ ...prev, [opt.name]: e.target.checked }));
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span className="optionChipText">{opt.name}</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {showListOptionComparisonDetails && existingInTargetOptionNames.length ? (
+                <>
+                  <div className="ctaRow">
+                    <button onClick={() => setShowExistingInTarget((prev) => !prev)}>
+                      {showExistingInTarget ? "Hide" : "Show"} Options Already In Target ({existingInTargetOptionNames.length})
+                    </button>
+                  </div>
+                  {showExistingInTarget ? (
+                    <>
+                      <div className="hint">These options exist in both the source and target environments.</div>
+                      <div className="chips">
+                        {existingInTargetOptionNames.map((name, idx) => (
+                          <span key={`existing-target-${idx}-${name}`} className="chip listOption">{name}</span>
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+
+              {showListOptionComparisonDetails && targetOnlyOptionNames.length ? (
+                <>
+                  <div className="ctaRow">
+                    <button onClick={() => setShowTargetOnlyOptions((prev) => !prev)}>
+                      {showTargetOnlyOptions ? "Hide" : "Show"} Options Only In Target ({targetOnlyOptionNames.length})
+                    </button>
+                  </div>
+                  {showTargetOnlyOptions ? (
+                    <>
+                      <div className="hint">These options exist in the target environment, but not in the source.</div>
+                      <div className="chips">
+                        {targetOnlyOptionNames.map((name, idx) => (
+                          <span key={`target-only-${idx}-${name}`} className="chip listOption">{name}</span>
+                        ))}
+                      </div>
+                    </>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1098 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Custom Field Patch (React)</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      max-width: 980px;
+      margin: 28px auto;
+      padding: 0 16px 70px;
+      line-height: 1.35;
+    }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    .muted { opacity: .75; margin: 0 0 16px; }
+    .topbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .right { margin-left: auto; }
+    button {
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background: #f7f7f7;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.primary { background: #111; color: #fff; border-color: #111; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .step {
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 12px;
+      margin: 10px 0;
+      background: #fff;
+    }
+    .title { font-weight: 650; margin-bottom: 8px; }
+    label { display: block; margin: 8px 0 6px; font-weight: 650; }
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 6px 0 8px;
+    }
+    .chip {
+      border: 1px solid #d0d0d0;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      background: #f7f7f7;
+      user-select: none;
+    }
+    .chip.selected {
+      border-color: #111;
+      background: #111;
+      color: #fff;
+    }
+    .hint { font-size: 12px; opacity: .8; margin-top: 6px; white-space: pre-wrap; }
+    .error { color: #b00020; font-size: 12px; margin-top: 8px; white-space: pre-wrap; }
+    .statusBanner {
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+    .statusGood {
+      background: #eaf8ee;
+      color: #0f5f2a;
+      border-color: #b9e7c5;
+    }
+    .statusBad {
+      background: #fff0f0;
+      color: #8b0000;
+      border-color: #ffc8c8;
+    }
+    .statusNeutral {
+      background: #f6f6f6;
+      color: #222;
+      border-color: #e0e0e0;
+    }
+    .ctaRow {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    .suggestionList {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .suggestionBtn {
+      text-align: left;
+      border: 1px solid #d8d8d8;
+      border-radius: 8px;
+      padding: 10px;
+      background: #f9f9f9;
+      cursor: pointer;
+    }
+    .suggestionBtn:hover {
+      border-color: #111;
+      background: #fff;
+    }
+    .suggestionBtn.selected {
+      border-color: #1f7a3b;
+      background: #eaf8ee;
+    }
+    .suggestionTitle {
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .suggestionMeta {
+      margin-top: 4px;
+      font-size: 12px;
+      opacity: .85;
+    }
+    .patchAttrRow {
+      margin-top: 6px;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .patchAttrHeader {
+      margin-top: 8px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .patchAttrOptions {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+    .patchAttrToggle {
+      flex: 0 0 auto;
+      margin-left: auto;
+    }
+    pre {
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+    }
+    pre.jwtExpired {
+      border-color: #b00020;
+      background: #fff5f5;
+      color: #b00020;
+    }
+    .jsonHighlightLine {
+      display: inline;
+      border-radius: 4px;
+      background: #fff6bf;
+      font-weight: 700;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useMemo, useRef, useState } = React;
+
+    const API_URLS = {
+      "Sandbox": "https://sandbox.albertinvent.com",
+      "Production": "https://app.albertinvent.com",
+      "Dev Environment": "https://dev.albertinventdev.com"
+    };
+    const COMMON_PATCH_ATTRIBUTES = [
+      "labelName",
+      "entityCategory",
+      "min",
+      "max",
+      "search",
+      "ui_components",
+      "required",
+      "hidden",
+      "multiselect",
+      "lkpRow",
+      "lkpColumn"
+    ];
+    const ADDITIONAL_PATCH_ATTRIBUTES = [
+      "pattern",
+      "customEntityCategory",
+      "default",
+      "default.type",
+      "default.value",
+      "editable"
+    ];
+    const ALLOWED_PATCH_ATTRIBUTES = [...COMMON_PATCH_ATTRIBUTES, ...ADDITIONAL_PATCH_ATTRIBUTES];
+    const DISPLAY_FIELD_ORDER = [
+      "albertID",
+      "status",
+      "service",
+      "name",
+      "labelName",
+      "type",
+      "category",
+      "entityCategory",
+      "min",
+      "max",
+      "search",
+      "ui_components",
+      "required",
+      "hidden",
+      "multiselect",
+      "lkpRow",
+      "lkpColumn",
+      "created",
+      "updated"
+    ];
+
+    function baseUrl(envChoice) {
+      return (API_URLS[envChoice] || "").replace(/\/+$/, "");
+    }
+
+    function decodeJwt(token) {
+      const parts = token.split(".");
+      if (parts.length !== 3) return null;
+      try {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+        return {
+          tenantId: payload.tenantId,
+          partition: payload.partition,
+          class: payload.class,
+          name: payload.name,
+          email: payload.email,
+          iss: payload.iss,
+          exp: payload.exp
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    function isJwtExpiredByDay(info) {
+      const expMs = Number(info?.exp) * 1000;
+      if (!Number.isFinite(expMs)) return false;
+      const expDay = new Date(expMs);
+      expDay.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return expDay.getTime() < today.getTime();
+    }
+
+    function inferEnvironmentFromIssuer(iss) {
+      const raw = String(iss || "").trim();
+      if (!raw) return "";
+
+      let host = raw.toLowerCase();
+      try {
+        const parsed = new URL(raw);
+        host = (parsed.hostname || "").toLowerCase();
+      } catch {
+        // Not a full URL; fall back to direct suffix matching on the raw issuer text.
+      }
+
+      if (host.endsWith(".demo")) return "Sandbox";
+      if (host.endsWith(".app2")) return "Production";
+      if (host.endsWith(".dev")) return "Dev Environment";
+      return "";
+    }
+
+    function formatJwtInfo(info) {
+      if (!info) return null;
+      const out = { ...info };
+      if ("exp" in out) delete out.exp;
+      const expMs = Number(info.exp) * 1000;
+      if (Number.isFinite(expMs)) out.expiration = new Date(expMs).toLocaleString();
+      return out;
+    }
+
+    function normalizeCustomField(data) {
+      if (!data || typeof data !== "object") return null;
+      if (data.item && typeof data.item === "object") return data.item;
+      if (data.customField && typeof data.customField === "object") return data.customField;
+      if (Array.isArray(data.items) && data.items.length) return data.items[0];
+      if (data.data && typeof data.data === "object" && !Array.isArray(data.data)) return data.data;
+      return data;
+    }
+
+    function extractErrorMessages(raw) {
+      const messages = [];
+      const seen = new Set();
+
+      function pushMessage(msg) {
+        const text = String(msg || "").trim();
+        if (!text || seen.has(text)) return;
+        seen.add(text);
+        messages.push(text);
+      }
+
+      function walk(value) {
+        if (value === null || value === undefined) return;
+        if (typeof value === "string") return;
+        if (Array.isArray(value)) return value.forEach(walk);
+        if (typeof value === "object") {
+          if (typeof value.msg === "string") pushMessage(value.msg);
+          if (typeof value.message === "string") pushMessage(value.message);
+          Object.values(value).forEach(walk);
+        }
+      }
+
+      let parsed = raw;
+      if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        if (!trimmed) return "(empty response body)";
+        try { parsed = JSON.parse(trimmed); }
+        catch { return trimmed; }
+      }
+
+      walk(parsed);
+      if (messages.length) return messages.join("\n");
+      if (typeof parsed === "string") return parsed;
+      try { return JSON.stringify(parsed, null, 2); }
+      catch { return String(parsed); }
+    }
+
+    function parseNewValue(raw) {
+      const s = String(raw ?? "").trim();
+      if (!s.length) return "";
+      const lower = s.toLowerCase();
+      if (lower === "true") return true;
+      if (lower === "false") return false;
+      if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
+      if ((s.startsWith("{") && s.endsWith("}")) || (s.startsWith("[") && s.endsWith("]")) || (s.startsWith("\"") && s.endsWith("\""))) {
+        try { return JSON.parse(s); } catch {}
+      }
+      return s;
+    }
+
+    function normalizeText(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function similarity(a, b) {
+      const sa = String(a || "").toLowerCase();
+      const sb = String(b || "").toLowerCase();
+      if (!sa || !sb) return 0;
+      const dp = Array(sa.length + 1).fill(0).map(() => Array(sb.length + 1).fill(0));
+      for (let i = 0; i <= sa.length; i++) dp[i][0] = i;
+      for (let j = 0; j <= sb.length; j++) dp[0][j] = j;
+      for (let i = 1; i <= sa.length; i++) {
+        for (let j = 1; j <= sb.length; j++) {
+          const cost = sa[i - 1] === sb[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+        }
+      }
+      return 1 - (dp[sa.length][sb.length] / (Math.max(sa.length, sb.length) || 1));
+    }
+
+    function isCtfId(value) {
+      return /^CTF\d+$/i.test(String(value || "").trim());
+    }
+
+    function hiddenRank(value) {
+      if (value === false) return 2;
+      if (value === true) return 0;
+      return 1;
+    }
+
+    function scoreLabelNameMatch(query, labelName) {
+      const q = String(query || "").trim().toLowerCase();
+      const label = String(labelName || "").trim().toLowerCase();
+      if (!q || !label) return 0;
+      let score = similarity(q, label);
+      if (q === label) score += 1;
+      else if (label.includes(q)) score += 0.4;
+      return score;
+    }
+
+    function singularizeModule(service) {
+      const map = {
+        inventories: "inventory",
+        tasks: "task",
+        lots: "lot",
+        datatemplates: "data template",
+        parametergroups: "parameter group",
+        projects: "project",
+        users: "user"
+      };
+      const key = String(service || "").trim().toLowerCase();
+      if (!key) return "unknown";
+      if (map[key]) return map[key];
+      if (key.endsWith("ies")) return `${key.slice(0, -3)}y`;
+      if (key.endsWith("s")) return key.slice(0, -1);
+      return key;
+    }
+
+    function getCustomFieldId(item) {
+      const val = item?.id ?? item?.albertId ?? item?.ctfId ?? item?.customFieldId ?? item?.fieldId ?? "";
+      return String(val).trim();
+    }
+
+    function isAttributeAllowedForField(attr, field) {
+      const service = normalizeText(field?.service);
+      const type = normalizeText(field?.type);
+
+      if (attr === "lkpRow" || attr === "lkpColumn") {
+        return service === "inventories";
+      }
+      if (attr === "entityCategory") {
+        return service === "inventories" || service === "tasks";
+      }
+      if (attr === "multiselect") {
+        return type === "list";
+      }
+      return true;
+    }
+
+    function allowedPatchAttributesForField(field) {
+      return ALLOWED_PATCH_ATTRIBUTES.filter((attr) => isAttributeAllowedForField(attr, field));
+    }
+
+    function getByPath(obj, path) {
+      const clean = String(path || "").trim();
+      if (!clean) return undefined;
+      const parts = clean.split(".").filter(Boolean);
+      let cur = obj;
+      for (const key of parts) {
+        if (cur === null || cur === undefined || typeof cur !== "object") return undefined;
+        cur = cur[key];
+      }
+      return cur;
+    }
+
+    function orderLikeReference(reference, value) {
+      if (Array.isArray(value)) {
+        const refFirst = Array.isArray(reference) && reference.length ? reference[0] : undefined;
+        return value.map((item) => orderLikeReference(refFirst, item));
+      }
+      if (!value || typeof value !== "object") return value;
+
+      const refObj = (reference && typeof reference === "object" && !Array.isArray(reference)) ? reference : {};
+      const out = {};
+      const valueKeys = Object.keys(value);
+
+      for (const key of Object.keys(refObj)) {
+        if (Object.prototype.hasOwnProperty.call(value, key)) {
+          out[key] = orderLikeReference(refObj[key], value[key]);
+        }
+      }
+
+      for (const key of valueKeys) {
+        if (!Object.prototype.hasOwnProperty.call(out, key)) {
+          out[key] = orderLikeReference(undefined, value[key]);
+        }
+      }
+
+      return out;
+    }
+
+    function orderForDisplay(field) {
+      if (!field || typeof field !== "object" || Array.isArray(field)) return field;
+      const ordered = {};
+      const used = new Set();
+
+      const aliasMap = {
+        albertID: ["albertID", "albertId", "albert_id", "id"],
+        created: ["created", "createdAt"],
+        updated: ["updated", "updatedAt"]
+      };
+
+      for (const key of DISPLAY_FIELD_ORDER) {
+        const candidates = aliasMap[key] || [key];
+        const found = candidates.find((candidate) => Object.prototype.hasOwnProperty.call(field, candidate));
+        if (!found) continue;
+        ordered[found] = field[found];
+        used.add(found);
+      }
+
+      for (const key of Object.keys(field)) {
+        if (!used.has(key)) ordered[key] = field[key];
+      }
+
+      return ordered;
+    }
+
+    async function fetchCustomFieldById(envChoice, token, ctfId) {
+      const safeId = encodeURIComponent(ctfId.trim());
+      const url = `${baseUrl(envChoice)}/api/v3/customfields/${safeId}`;
+      const resp = await fetch(url, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token.trim()}` }
+      });
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      return { status: resp.status, text, data };
+    }
+
+    async function fetchCustomFields(envChoice, token) {
+      const url = `${baseUrl(envChoice)}/api/v3/customfields/?limit=200`;
+      const resp = await fetch(url, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token.trim()}` }
+      });
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      const items = Array.isArray(data)
+        ? data
+        : (Array.isArray(data?.items) ? data.items : (Array.isArray(data?.Items) ? data.Items : []));
+      return { status: resp.status, text, items };
+    }
+
+    async function patchCustomFieldById(envChoice, token, ctfId, payload) {
+      const safeId = encodeURIComponent(ctfId.trim());
+      const url = `${baseUrl(envChoice)}/api/v3/customfields/${safeId}`;
+      const resp = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${token.trim()}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const text = await resp.text();
+      return { status: resp.status, text };
+    }
+
+    function App() {
+      const [envChoice, setEnvChoice] = useState(localStorage.getItem("cfp_env") || "");
+      const [token, setToken] = useState(localStorage.getItem("cfp_token") || "");
+      const [ctfId, setCtfId] = useState(localStorage.getItem("cfp_ctf_id") || "");
+      const [jwtInfo, setJwtInfo] = useState(decodeJwt((localStorage.getItem("cfp_token") || "").trim()));
+
+      const [loading, setLoading] = useState(false);
+      const [validateError, setValidateError] = useState("");
+      const [field, setField] = useState(null);
+      const [previousField, setPreviousField] = useState(null);
+      const [showPreviousState, setShowPreviousState] = useState(false);
+
+      const [attributeName, setAttributeName] = useState("");
+      const [newValueRaw, setNewValueRaw] = useState("");
+      const [patchValidateError, setPatchValidateError] = useState("");
+      const [patchPayload, setPatchPayload] = useState(null);
+      const [showAdditionalPatchOptions, setShowAdditionalPatchOptions] = useState(false);
+
+      const [patchStatus, setPatchStatus] = useState("");
+      const [patchStatusType, setPatchStatusType] = useState("");
+      const [patchErrorDetails, setPatchErrorDetails] = useState("");
+      const [lookupSuggestions, setLookupSuggestions] = useState([]);
+      const [selectedSuggestionId, setSelectedSuggestionId] = useState("");
+      const [resolvedCtfId, setResolvedCtfId] = useState("");
+
+      const fieldRef = useRef(null);
+      const patchBuilderRef = useRef(null);
+      const payloadRef = useRef(null);
+
+      const jwtExpired = useMemo(() => isJwtExpiredByDay(jwtInfo), [jwtInfo]);
+      const displayedField = useMemo(() => {
+        if (showPreviousState && previousField) return previousField;
+        return field;
+      }, [showPreviousState, previousField, field]);
+      const orderedDisplayedField = useMemo(() => orderForDisplay(displayedField), [displayedField]);
+      const fieldText = useMemo(() => orderedDisplayedField ? JSON.stringify(orderedDisplayedField, null, 2) : "", [orderedDisplayedField]);
+      const payloadText = useMemo(() => patchPayload ? JSON.stringify(patchPayload, null, 2) : "", [patchPayload]);
+      const canSubmitPatch = !!patchPayload && !loading;
+      const allowedPatchAttributes = useMemo(() => allowedPatchAttributesForField(field), [field]);
+      const visibleCommonPatchAttributes = useMemo(
+        () => COMMON_PATCH_ATTRIBUTES.filter((attr) => isAttributeAllowedForField(attr, field)),
+        [field]
+      );
+      const visibleAdditionalPatchAttributes = useMemo(
+        () => ADDITIONAL_PATCH_ATTRIBUTES.filter((attr) => isAttributeAllowedForField(attr, field)),
+        [field]
+      );
+      const selectedAttributeExactKey = useMemo(() => String(attributeName || "").trim(), [attributeName]);
+      const selectedAttributeCurrentValuePlaceholder = useMemo(() => {
+        const attr = String(attributeName || "").trim();
+        if (!attr || !field) return "";
+        const value = getByPath(field, attr);
+        if (typeof value === "undefined") return "";
+        if (value === null) return "null";
+        if (typeof value === "string") return value;
+        if (typeof value === "number" || typeof value === "boolean") return String(value);
+        try { return JSON.stringify(value); } catch { return ""; }
+      }, [attributeName, field]);
+      const highlightedFieldLines = useMemo(() => {
+        if (!fieldText) return [];
+        return fieldText.split("\n").map((line) => ({
+          line,
+          highlight: !!selectedAttributeExactKey && line.includes(`"${selectedAttributeExactKey}"`)
+        }));
+      }, [fieldText, selectedAttributeExactKey]);
+
+      function clearJwtFormatErrorIfNeeded(nextJwtInfo) {
+        if (!nextJwtInfo) return;
+        setValidateError((prev) => (
+          String(prev || "").includes("does not appear to be a JWT") ? "" : prev
+        ));
+      }
+
+      function persist(next = {}) {
+        if ("envChoice" in next) localStorage.setItem("cfp_env", next.envChoice);
+        if ("token" in next) localStorage.setItem("cfp_token", next.token);
+        if ("ctfId" in next) localStorage.setItem("cfp_ctf_id", next.ctfId);
+      }
+
+      function scrollToRef(ref) {
+        requestAnimationFrame(() => {
+          ref.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        });
+      }
+
+      function clearResults() {
+        setValidateError("");
+        setPatchValidateError("");
+        setField(null);
+        setPreviousField(null);
+        setShowPreviousState(false);
+        setPatchPayload(null);
+        setPatchStatus("");
+        setPatchStatusType("");
+        setPatchErrorDetails("");
+        setLookupSuggestions([]);
+        setSelectedSuggestionId("");
+        setResolvedCtfId("");
+      }
+
+      function resetPatchFlowFromInputs() {
+        setValidateError("");
+        setPatchValidateError("");
+        setField(null);
+        setPreviousField(null);
+        setShowPreviousState(false);
+        setAttributeName("");
+        setNewValueRaw("");
+        setPatchPayload(null);
+        setShowAdditionalPatchOptions(false);
+        setPatchStatus("");
+        setPatchStatusType("");
+        setPatchErrorDetails("");
+        setLookupSuggestions([]);
+        setSelectedSuggestionId("");
+        setResolvedCtfId("");
+      }
+
+      async function validateById(env, t, id) {
+        const res = await fetchCustomFieldById(env, t, id);
+        if (res.status === 401 || res.status === 403) {
+          setValidateError("Bearer token is invalid for this environment.");
+          return false;
+        }
+        if (res.status < 200 || res.status > 299) {
+          setValidateError(`Custom field lookup failed (${res.status}).`);
+          return false;
+        }
+        const normalized = normalizeCustomField(res.data);
+        if (!normalized || typeof normalized !== "object") {
+          setValidateError("Custom field response could not be parsed.");
+          return false;
+        }
+        setField(normalized);
+        setResolvedCtfId(String(id || "").trim());
+        setPreviousField(null);
+        setShowPreviousState(false);
+        setTimeout(() => fieldRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+        return true;
+      }
+
+      async function resolveByLabelName(env, t, labelInput) {
+        const lookup = await fetchCustomFields(env, t);
+        if (lookup.status === 401 || lookup.status === 403) {
+          setValidateError("Bearer token is invalid for this environment.");
+          return [];
+        }
+        if (lookup.status < 200 || lookup.status > 299) {
+          setValidateError(`Custom field list lookup failed (${lookup.status}).`);
+          return [];
+        }
+
+        const candidates = (lookup.items || [])
+          .map((item) => {
+            const id = getCustomFieldId(item);
+            const labelName = String(item?.labelName || "").trim();
+            const status = String(item?.status || "").trim().toLowerCase();
+            if (status === "inactive") return null;
+            if (!id || !labelName) return null;
+            const score = scoreLabelNameMatch(labelInput, labelName);
+            if (score <= 0.6) return null;
+            return {
+              id,
+              labelName,
+              module: singularizeModule(item?.service),
+              type: String(item?.type || "").trim() || "unknown",
+              hidden: item?.hidden,
+              score
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => {
+            const hiddenDiff = hiddenRank(b.hidden) - hiddenRank(a.hidden);
+            if (hiddenDiff) return hiddenDiff;
+            if (b.score !== a.score) return b.score - a.score;
+            return a.labelName.localeCompare(b.labelName);
+          })
+          .slice(0, 5);
+
+        if (!candidates.length) {
+          setValidateError("No labelName matches were found.");
+          return [];
+        }
+
+        setResolvedCtfId("");
+        setSelectedSuggestionId("");
+        setLookupSuggestions(candidates);
+        return candidates;
+      }
+
+      async function handleValidateField() {
+        clearResults();
+        const t = token.trim();
+        const idOrLabel = ctfId.trim();
+
+        if (!envChoice) return setValidateError("Please select environment.");
+        if (!t) return setValidateError("Bearer token is required.");
+        if (!idOrLabel) return setValidateError("Custom field ID or labelName is required.");
+
+        const jwt = decodeJwt(t);
+        if (!jwt) return setValidateError("Token does not appear to be a JWT (expected 3 segments).");
+
+        setJwtInfo(jwt);
+        persist({ envChoice, token, ctfId: idOrLabel });
+
+        setLoading(true);
+        try {
+          if (isCtfId(idOrLabel)) {
+            setSelectedSuggestionId("");
+            await validateById(envChoice, t, idOrLabel);
+          } else {
+            await resolveByLabelName(envChoice, t, idOrLabel);
+          }
+        } catch (err) {
+          setValidateError(`Validation failed: ${String(err?.message || err)}`);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function handleSuggestionSelect(item) {
+        const id = String(item?.id || "").trim();
+        if (!id) return;
+        setValidateError("");
+        setPatchValidateError("");
+        setField(null);
+        setPreviousField(null);
+        setShowPreviousState(false);
+        setAttributeName("");
+        setNewValueRaw("");
+        setPatchPayload(null);
+        setShowAdditionalPatchOptions(false);
+        setPatchStatus("");
+        setPatchStatusType("");
+        setPatchErrorDetails("");
+        setSelectedSuggestionId(id);
+
+        setLoading(true);
+        try {
+          await validateById(envChoice, token.trim(), id);
+        } catch (err) {
+          setValidateError(`Validation failed: ${String(err?.message || err)}`);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      function handleAttributeSelect(attr) {
+        setAttributeName(attr);
+        setPatchValidateError("");
+        const currentValue = getByPath(field, attr);
+        if (typeof currentValue === "string") {
+          setNewValueRaw(currentValue);
+          return;
+        }
+        setNewValueRaw("");
+      }
+
+      function handleValidatePatch() {
+        setPatchValidateError("");
+        setPatchPayload(null);
+        setPatchStatus("");
+        setPatchStatusType("");
+        setPatchErrorDetails("");
+
+        if (!field) return setPatchValidateError("Validate the custom field first.");
+        const attr = attributeName.trim();
+        if (!attr) return setPatchValidateError("Attribute to update is required.");
+        if (!allowedPatchAttributes.includes(attr)) {
+          return setPatchValidateError("Please select an allowed patch attribute for this field.");
+        }
+
+        const newValue = parseNewValue(newValueRaw);
+        const oldValue = getByPath(field, attr);
+        const patchItem = {
+          operation: "update",
+          attribute: attr,
+          newValue
+        };
+        if (typeof oldValue !== "undefined") {
+          patchItem.oldValue = oldValue;
+        }
+        const payload = {
+          data: [
+            patchItem
+          ]
+        };
+        setPatchPayload(payload);
+        setTimeout(() => scrollToRef(payloadRef), 0);
+      }
+
+      async function handleSubmitPatch() {
+        if (!canSubmitPatch) return;
+        const payloadToSend = patchPayload;
+        setPatchPayload(null);
+        setPatchStatus("");
+        setPatchStatusType("");
+        setPatchErrorDetails("");
+        setLoading(true);
+
+        try {
+          const idToUse = String(resolvedCtfId || ctfId).trim();
+          const res = await patchCustomFieldById(envChoice, token, idToUse, payloadToSend);
+          if (res.status >= 200 && res.status <= 299) {
+            setPatchStatus(`Patch completed (${res.status}).`);
+            setPatchStatusType("success");
+            const snapshotBeforePatch = field ? JSON.parse(JSON.stringify(field)) : null;
+            const refreshed = await fetchCustomFieldById(envChoice, token, idToUse);
+            if (refreshed.status >= 200 && refreshed.status <= 299) {
+              const nextField = normalizeCustomField(refreshed.data);
+              if (nextField && typeof nextField === "object") {
+                setPreviousField(snapshotBeforePatch);
+                setField(orderLikeReference(snapshotBeforePatch || {}, nextField));
+                setShowPreviousState(false);
+              }
+            }
+            setTimeout(() => scrollToRef(fieldRef), 0);
+          } else {
+            setPatchStatus(`Patch failed (${res.status}).`);
+            setPatchStatusType("failure");
+            setPatchErrorDetails(extractErrorMessages(res.text));
+            setTimeout(() => scrollToRef(patchBuilderRef), 0);
+          }
+        } catch (err) {
+          setPatchStatus(`Patch failed: ${String(err?.message || err)}`);
+          setPatchStatusType("failure");
+          setPatchErrorDetails(String(err?.stack || err?.message || err));
+          setTimeout(() => scrollToRef(patchBuilderRef), 0);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      return (
+        <>
+          <div className="topbar">
+            <h1 style={{ margin: 0 }}>Custom Field Patch (React)</h1>
+            <button className="right" type="button" onClick={() => window.location.reload()}>Restart</button>
+          </div>
+          <p className="muted">
+            Use this Custom Field API Builder to patch a custom field in your environment. Answer the questions below to build and submit the patch payload.
+          </p>
+
+          <div className="step">
+            <div className="title">Patch Inputs</div>
+            <div className="grid">
+              <div>
+                <label>Environment</label>
+                <div className="chips">
+                  {Object.keys(API_URLS).map((env) => (
+                    <span
+                      key={env}
+                      className={`chip ${envChoice === env ? "selected" : ""}`}
+                      onClick={() => {
+                        if (envChoice === env) return;
+                        setEnvChoice(env);
+                        resetPatchFlowFromInputs();
+                        persist({ envChoice: env });
+                      }}
+                    >{env}</span>
+                  ))}
+                </div>
+                <label>Bearer Token</label>
+                <input
+                  type="password"
+                  placeholder="Paste token"
+                  value={token}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    const nextJwtInfo = decodeJwt(v.trim());
+                    const inferredEnv = inferEnvironmentFromIssuer(nextJwtInfo?.iss);
+                    setToken(v);
+                    setJwtInfo(nextJwtInfo);
+                    if (inferredEnv) setEnvChoice(inferredEnv);
+                    resetPatchFlowFromInputs();
+                    clearJwtFormatErrorIfNeeded(nextJwtInfo);
+                    persist(inferredEnv ? { token: v, envChoice: inferredEnv } : { token: v });
+                  }}
+                />
+                <pre className={jwtExpired ? "jwtExpired" : ""}>{jwtInfo ? JSON.stringify(formatJwtInfo(jwtInfo), null, 2) : ""}</pre>
+              </div>
+
+              <div>
+                <label>Custom Field ID or Name</label>
+                <input
+                  type="text"
+                  placeholder="Example: CTF123 or Name"
+                  value={ctfId}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setCtfId(v);
+                    resetPatchFlowFromInputs();
+                    persist({ ctfId: v });
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleValidateField();
+                    }
+                  }}
+                />
+                {lookupSuggestions.length ? (
+                  <div className="suggestionList">
+                    {lookupSuggestions.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`suggestionBtn ${selectedSuggestionId === item.id ? "selected" : ""}`}
+                        onClick={() => handleSuggestionSelect(item)}
+                        disabled={loading}
+                      >
+                        <div className="suggestionTitle">{item.labelName}</div>
+                        <div className="suggestionMeta">
+                          {item.id} | Module: {item.module || "unknown"} | Type: {item.type || "unknown"} | hidden: {item.hidden === true ? "true" : (item.hidden === false ? "false" : "unknown")}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {!loading && !isCtfId(ctfId.trim()) && lookupSuggestions.length > 0 && lookupSuggestions.length < 2 && !lookupSuggestions.some((item) => Number(item?.score || 0) >= 0.9) ? (
+                  <div className="hint">If fewer than 2 options appear and this environment has more than 200 custom fields, this search may miss matches due to the API limit.</div>
+                ) : null}
+              </div>
+            </div>
+            {validateError ? <div className="error">{validateError}</div> : null}
+            <div className="ctaRow">
+              <button onClick={clearResults} disabled={loading}>Clear Results</button>
+              <button className="primary" onClick={handleValidateField} disabled={loading}>{loading ? "Working..." : "Validate"}</button>
+            </div>
+          </div>
+
+          {field ? (
+            <div className="step" ref={fieldRef}>
+              <div className="title">Field Details</div>
+              <div className="statusBanner statusNeutral">GET response loaded. Set your patch attribute and new value below.</div>
+              {patchStatus && patchStatusType === "success" ? (
+                <div className="statusBanner statusGood">{patchStatus}</div>
+              ) : null}
+              <div className="hint">{showPreviousState ? "Viewing previous state (before latest patch)." : "Viewing current state."}</div>
+              {previousField ? (
+                <div className="ctaRow">
+                  <button
+                    type="button"
+                    onClick={() => setShowPreviousState((prev) => !prev)}
+                  >
+                    {showPreviousState ? "Show Current State" : "Show Previous State"}
+                  </button>
+                </div>
+              ) : null}
+              <pre>
+                {highlightedFieldLines.map((entry, idx) => (
+                  <React.Fragment key={idx}>
+                    {entry.highlight ? <span className="jsonHighlightLine">{entry.line}</span> : entry.line}
+                    {idx < highlightedFieldLines.length - 1 ? "\n" : ""}
+                  </React.Fragment>
+                ))}
+              </pre>
+            </div>
+          ) : null}
+
+          {field ? (
+            <div className="step" ref={patchBuilderRef}>
+              <div className="title">Patch Builder</div>
+              {patchStatus && patchStatusType === "failure" ? (
+                <>
+                  <div className="statusBanner statusBad">{patchStatus}</div>
+                  {patchErrorDetails ? <pre>{patchErrorDetails}</pre> : null}
+                </>
+              ) : null}
+              <div className="patchAttrHeader">
+                <label style={{ margin: 0 }}>Attribute to update</label>
+                <button
+                  type="button"
+                  className="patchAttrToggle"
+                  onClick={() => setShowAdditionalPatchOptions((prev) => !prev)}
+                >
+                  {showAdditionalPatchOptions ? "Hide Additional Patch Options" : "Show Additional Patch Options"}
+                </button>
+              </div>
+              <div className="patchAttrRow">
+                <div className="patchAttrOptions">
+                  <div className="chips">
+                    {visibleCommonPatchAttributes.map((attr) => (
+                      <span
+                        key={attr}
+                        className={`chip ${attributeName === attr ? "selected" : ""}`}
+                        onClick={() => handleAttributeSelect(attr)}
+                      >
+                        {attr}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              {showAdditionalPatchOptions ? (
+                <>
+                  <div className="hint">Additional patch options</div>
+                  <div className="chips">
+                    {visibleAdditionalPatchAttributes.map((attr) => (
+                      <span
+                        key={attr}
+                        className={`chip ${attributeName === attr ? "selected" : ""}`}
+                        onClick={() => handleAttributeSelect(attr)}
+                      >
+                        {attr}
+                      </span>
+                    ))}
+                  </div>
+                </>
+              ) : null}
+
+              <label>New value</label>
+              <input
+                type="text"
+                placeholder={selectedAttributeCurrentValuePlaceholder}
+                value={newValueRaw}
+                onChange={(e) => {
+                  setNewValueRaw(e.target.value);
+                }}
+              />
+              <div className="hint">Input is auto-parsed: true/false/number/JSON, otherwise treated as string.</div>
+              {patchValidateError ? <div className="error">{patchValidateError}</div> : null}
+
+              <div className="ctaRow">
+                <button className="primary" onClick={handleValidatePatch} disabled={loading}>Validate Patch Payload</button>
+              </div>
+            </div>
+          ) : null}
+
+          {patchPayload ? (
+            <div className="step" ref={payloadRef}>
+              <div className="title">Payload Preview</div>
+              <pre>{payloadText}</pre>
+              <div className="ctaRow">
+                <button className="primary" onClick={handleSubmitPatch} disabled={!canSubmitPatch}>
+                  {loading ? "Working..." : "Submit Patch"}
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

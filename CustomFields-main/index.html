@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Custom Field Tools Controller</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      max-width: 980px;
+      margin: 28px auto;
+      padding: 0 16px 70px;
+      line-height: 1.35;
+    }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    .muted { opacity: .75; margin: 0 0 16px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 12px;
+    }
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .card {
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 14px;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .title {
+      font-weight: 650;
+      font-size: 16px;
+    }
+    .desc {
+      font-size: 13px;
+      opacity: .8;
+      white-space: pre-wrap;
+    }
+    .actions {
+      margin-top: auto;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    a.button {
+      display: inline-block;
+      text-decoration: none;
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid #111;
+      background: #111;
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+    }
+    code {
+      background: #f5f5f5;
+      border: 1px solid #e7e7e7;
+      border-radius: 6px;
+      padding: 1px 6px;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Custom Field Tools Controller</h1>
+  <div class="grid">
+    <div class="card">
+      <div class="title">Create Custom Field</div>
+      <div class="actions">
+        <a class="button" href="./CustomFieldCreator_react_js.html">Open Creator</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="title">Migrate Custom Field/List options</div>
+      <div class="actions">
+        <a class="button" href="./CustomFieldMigrator_react_js.html">Open Migrator</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="title">Patch Custom Field</div>
+      <div class="actions">
+        <a class="button" href="./CustomFieldPatch_react_js.html">Open Patcher</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="title">Delete / Hide Custom Field</div>
+      <div class="actions">
+        <a class="button" href="./CustomFieldDelete_react_js.html">Open Delete/Hide</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="title">Create List Options</div>
+      <div class="actions">
+        <a class="button" href="./CustomFieldListOptions_react_js.html">Open List Options</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="title">Patch List Options (work in progress)</div>
+      <div class="actions">
+        <a class="button" href="./CustomFieldListOptionsPatch_react_js.html">Open List Option Patcher</a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

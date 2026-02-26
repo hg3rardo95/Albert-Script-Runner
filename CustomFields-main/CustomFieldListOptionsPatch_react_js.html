@@ -1,0 +1,1177 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Custom Field List Options Patch (React)</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      max-width: 1100px;
+      margin: 28px auto;
+      padding: 0 16px 70px;
+      line-height: 1.35;
+    }
+    h1 { font-size: 22px; margin: 0 0 6px; }
+    .muted { opacity: .75; margin: 0 0 16px; }
+    .topbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .right { margin-left: auto; }
+    button {
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background: #f7f7f7;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.primary { background: #111; color: #fff; border-color: #111; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .step {
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 12px;
+      margin: 10px 0;
+      background: #fff;
+    }
+    .title { font-weight: 650; margin-bottom: 8px; }
+    label { display: block; margin: 8px 0 6px; font-weight: 650; }
+    input[type="text"],
+    input[type="password"] {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      font-size: 14px;
+      box-sizing: border-box;
+      background: #fff;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+      .optionRow { grid-template-columns: 1fr; }
+    }
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 6px 0 8px;
+    }
+    .chip {
+      border: 1px solid #d0d0d0;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      background: #f7f7f7;
+      user-select: none;
+    }
+    .chip.selected {
+      border-color: #111;
+      background: #111;
+      color: #fff;
+    }
+    .hint { font-size: 12px; opacity: .8; margin-top: 6px; white-space: pre-wrap; }
+    .ok { color: #0b7a32; font-size: 12px; margin-top: 8px; white-space: pre-wrap; }
+    .error { color: #b00020; font-size: 12px; margin-top: 8px; white-space: pre-wrap; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 8px;
+    }
+    @media (max-width: 760px) {
+      .cards { grid-template-columns: 1fr; }
+    }
+    .card {
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      padding: 10px;
+      background: #fafafa;
+    }
+    .cardLabel { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; opacity: .7; }
+    .cardValue { font-size: 14px; margin-top: 4px; word-break: break-word; }
+    .statusBanner {
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+    .statusNeutral {
+      background: #f6f6f6;
+      color: #222;
+      border-color: #e0e0e0;
+    }
+    .ctaRow {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    .suggestionList {
+      margin-top: 10px;
+      display: grid;
+      gap: 8px;
+    }
+    .suggestionBtn {
+      text-align: left;
+      border: 1px solid #d8d8d8;
+      border-radius: 8px;
+      padding: 10px;
+      background: #f9f9f9;
+      cursor: pointer;
+    }
+    .suggestionBtn:hover {
+      border-color: #111;
+      background: #fff;
+    }
+    .suggestionBtn.selected {
+      border-color: #1f7a3b;
+      background: #eaf8ee;
+    }
+    .suggestionTitle {
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .suggestionMeta {
+      margin-top: 4px;
+      font-size: 12px;
+      opacity: .85;
+    }
+    .optionWorkbench {
+      border: 1px solid #e5e5e5;
+      border-radius: 10px;
+      background: #fafafa;
+      padding: 8px;
+      max-height: 460px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    .optionRow {
+      margin-bottom: 8px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fff;
+      padding: 4px 8px;
+      display: inline-flex;
+      width: auto;
+      gap: 8px;
+      align-items: center;
+      cursor: pointer;
+      box-sizing: border-box;
+      min-height: 38px;
+    }
+    .optionRow:last-child { margin-bottom: 0; }
+    .optionRow.selected {
+      border-color: #111;
+      background: #f4f4f4;
+      display: grid;
+    }
+    .optionLeft {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .optionRightInner {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      white-space: nowrap;
+    }
+    .optionName {
+      font-size: 13px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .actionRow {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .actionLabel {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      font-weight: 500;
+      font-size: 12px;
+      margin: 0;
+      white-space: nowrap;
+    }
+    .renameInput {
+      width: 100% !important;
+      min-width: 120px;
+      padding-top: 4px !important;
+      padding-bottom: 4px !important;
+      font-size: 13px !important;
+    }
+    .renameInput:disabled {
+      background: #eeeeee !important;
+      color: #777 !important;
+      border-color: #d2d2d2 !important;
+      cursor: not-allowed;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 12px;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f7f7f7; }
+    .resultQueued { color: #555; font-weight: 600; }
+    .resultSuccess { color: #0b7a32; font-weight: 700; }
+    .resultFailed { color: #b00020; font-weight: 700; }
+    pre {
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+    }
+    pre.jwtExpired {
+      border-color: #b00020;
+      background: #fff5f5;
+      color: #b00020;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useEffect, useMemo, useRef, useState } = React;
+
+    const API_URLS = {
+      "Sandbox": "https://sandbox.albertinvent.com",
+      "Production": "https://app.albertinvent.com",
+      "Dev Environment": "https://dev.albertinventdev.com"
+    };
+    const STORAGE_KEYS = {
+      envChoice: "cflop_patch_env",
+      token: "cflop_patch_token",
+      ctfId: "cflop_patch_ctf_id"
+    };
+
+    function baseUrl(envChoice) {
+      return (API_URLS[envChoice] || "").replace(/\/+$/, "");
+    }
+
+    function decodeJwt(token) {
+      const parts = token.split(".");
+      if (parts.length !== 3) return null;
+      try {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+        return {
+          tenantId: payload.tenantId,
+          partition: payload.partition,
+          class: payload.class,
+          name: payload.name,
+          email: payload.email,
+          iss: payload.iss,
+          exp: payload.exp
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    function formatJwtInfo(info) {
+      if (!info) return null;
+      const out = { ...info };
+      if ("exp" in out) delete out.exp;
+      const expMs = Number(info.exp) * 1000;
+      if (Number.isFinite(expMs)) out.expiration = new Date(expMs).toLocaleString();
+      return out;
+    }
+
+    function isJwtExpiredByDay(info) {
+      const expMs = Number(info?.exp) * 1000;
+      if (!Number.isFinite(expMs)) return false;
+      const expDay = new Date(expMs);
+      expDay.setHours(0, 0, 0, 0);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return expDay.getTime() < today.getTime();
+    }
+
+    function inferEnvironmentFromIssuer(iss) {
+      const raw = String(iss || "").trim();
+      if (!raw) return "";
+
+      let host = raw.toLowerCase();
+      try {
+        const parsed = new URL(raw);
+        host = (parsed.hostname || "").toLowerCase();
+      } catch {
+        // Not a full URL; fall back to direct suffix matching on the raw issuer text.
+      }
+
+      if (host.endsWith(".demo")) return "Sandbox";
+      if (host.endsWith(".app2")) return "Production";
+      if (host.endsWith(".dev")) return "Dev Environment";
+      return "";
+    }
+
+    function normalizeCustomField(data) {
+      if (!data || typeof data !== "object") return null;
+      if (data.item && typeof data.item === "object") return data.item;
+      if (data.customField && typeof data.customField === "object") return data.customField;
+      return data;
+    }
+
+    function summarizeCustomField(field) {
+      return {
+        id: field.id || field.albertId || field.ctfId || field.customFieldId || null,
+        name: field.name || null,
+        labelName: field.labelName || null,
+        type: field.type || null,
+        category: field.category || field.listCategory || field.listType || null
+      };
+    }
+
+    function extractListOptions(items) {
+      if (!Array.isArray(items)) return [];
+      const out = [];
+      const seen = new Set();
+      items.forEach((item, idx) => {
+        if (!item || typeof item !== "object") return;
+        const id = item.albertId || item.albertID || item.id || item.listId || item.guid || "";
+        const nameRaw = item.name || item.label || item.labelName || item.value || item.displayName || "";
+        const name = String(nameRaw || "").trim();
+        if (!name) return;
+        const listType = String(item.listType || "").trim();
+        const category = String(item.category || item.listCategory || "").trim();
+        const key = `${String(id)}|${name.toLowerCase()}|${idx}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push({
+          key: `${String(id || name)}|${idx}`,
+          id: String(id || "").trim(),
+          name,
+          listType,
+          category,
+          raw: item
+        });
+      });
+      return out;
+    }
+
+    function extractErrorMessages(raw) {
+      const messages = [];
+      const seen = new Set();
+
+      function pushMessage(msg) {
+        const text = String(msg || "").trim();
+        if (!text || seen.has(text)) return;
+        seen.add(text);
+        messages.push(text);
+      }
+
+      function walk(value) {
+        if (value === null || value === undefined) return;
+        if (typeof value === "string") return;
+        if (Array.isArray(value)) return value.forEach(walk);
+        if (typeof value === "object") {
+          if (typeof value.msg === "string") pushMessage(value.msg);
+          if (typeof value.message === "string") pushMessage(value.message);
+          Object.values(value).forEach(walk);
+        }
+      }
+
+      let parsed = raw;
+      if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        if (!trimmed) return "(empty response body)";
+        try { parsed = JSON.parse(trimmed); }
+        catch { return trimmed; }
+      }
+
+      walk(parsed);
+      if (messages.length) return messages.join("\n");
+      if (typeof parsed === "string") return parsed;
+      try { return JSON.stringify(parsed, null, 2); }
+      catch { return String(parsed); }
+    }
+
+    function similarity(a, b) {
+      const sa = String(a || "").toLowerCase();
+      const sb = String(b || "").toLowerCase();
+      if (!sa || !sb) return 0;
+      const dp = Array(sa.length + 1).fill(0).map(() => Array(sb.length + 1).fill(0));
+      for (let i = 0; i <= sa.length; i++) dp[i][0] = i;
+      for (let j = 0; j <= sb.length; j++) dp[0][j] = j;
+      for (let i = 1; i <= sa.length; i++) {
+        for (let j = 1; j <= sb.length; j++) {
+          const cost = sa[i - 1] === sb[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+        }
+      }
+      return 1 - (dp[sa.length][sb.length] / (Math.max(sa.length, sb.length) || 1));
+    }
+
+    function isCtfId(value) {
+      return /^CTF\d+$/i.test(String(value || "").trim());
+    }
+
+    function hiddenRank(value) {
+      if (value === false) return 2;
+      if (value === true) return 0;
+      return 1;
+    }
+
+    function scoreLabelNameMatch(query, labelName) {
+      const q = String(query || "").trim().toLowerCase();
+      const label = String(labelName || "").trim().toLowerCase();
+      if (!q || !label) return 0;
+      let score = similarity(q, label);
+      if (q === label) score += 1;
+      else if (label.includes(q)) score += 0.4;
+      return score;
+    }
+
+    function singularizeModule(service) {
+      const map = {
+        inventories: "inventory",
+        tasks: "task",
+        lots: "lot",
+        datatemplates: "data template",
+        parametergroups: "parameter group",
+        projects: "project",
+        users: "user"
+      };
+      const key = String(service || "").trim().toLowerCase();
+      if (!key) return "unknown";
+      if (map[key]) return map[key];
+      if (key.endsWith("ies")) return `${key.slice(0, -3)}y`;
+      if (key.endsWith("s")) return key.slice(0, -1);
+      return key;
+    }
+
+    async function fetchCustomFieldById(envChoice, token, ctfId) {
+      const safeId = encodeURIComponent(ctfId.trim());
+      const url = `${baseUrl(envChoice)}/api/v3/customfields/${safeId}`;
+      const resp = await fetch(url, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token.trim()}` }
+      });
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      return { status: resp.status, data, text };
+    }
+
+    async function fetchCustomFields(envChoice, token) {
+      const url = `${baseUrl(envChoice)}/api/v3/customfields/?limit=200`;
+      const resp = await fetch(url, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token.trim()}` }
+      });
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      const items = Array.isArray(data)
+        ? data
+        : (Array.isArray(data?.items) ? data.items : (Array.isArray(data?.Items) ? data.Items : []));
+      return { status: resp.status, text, items };
+    }
+
+    async function fetchListOptions(envChoice, token, listType) {
+      const q = new URLSearchParams({
+        limit: "100",
+        listType: String(listType || "").trim(),
+        orderBy: "asc"
+      });
+      const url = `${baseUrl(envChoice)}/api/v3/lists?${q.toString()}`;
+      const resp = await fetch(url, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token.trim()}` }
+      });
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      const items = Array.isArray(data) ? data : (Array.isArray(data?.items) ? data.items : (Array.isArray(data?.Items) ? data.Items : []));
+      return { status: resp.status, text, items, url };
+    }
+
+    async function deleteListOption(envChoice, token, optionId) {
+      const url = `${baseUrl(envChoice)}/api/v3/lists/${encodeURIComponent(String(optionId || "").trim())}`;
+      const resp = await fetch(url, {
+        method: "DELETE",
+        headers: { "Authorization": `Bearer ${token.trim()}` }
+      });
+      const text = await resp.text();
+      return { status: resp.status, text, url };
+    }
+
+    async function patchListOptionName(envChoice, token, optionId, oldValue, newValue) {
+      const url = `${baseUrl(envChoice)}/api/v3/lists/${encodeURIComponent(String(optionId || "").trim())}`;
+      const payload = {
+        data: [
+          {
+            operation: "update",
+            attribute: "name",
+            oldValue: String(oldValue || ""),
+            newValue: String(newValue || "")
+          }
+        ]
+      };
+      const resp = await fetch(url, {
+        method: "PATCH",
+        headers: {
+          "Authorization": `Bearer ${token.trim()}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const text = await resp.text();
+      return { status: resp.status, text, url, payload };
+    }
+
+    function App() {
+      const [ctfId, setCtfId] = useState(localStorage.getItem(STORAGE_KEYS.ctfId) || "");
+      const [envChoice, setEnvChoice] = useState(localStorage.getItem(STORAGE_KEYS.envChoice) || "");
+      const [token, setToken] = useState(localStorage.getItem(STORAGE_KEYS.token) || "");
+      const [jwtInfo, setJwtInfo] = useState(decodeJwt((localStorage.getItem(STORAGE_KEYS.token) || "").trim()));
+      const [ctfInfo, setCtfInfo] = useState(null);
+      const [ctfField, setCtfField] = useState(null);
+      const [validated, setValidated] = useState(false);
+      const [validateError, setValidateError] = useState("");
+      const [initialGetDebug, setInitialGetDebug] = useState("");
+      const [listLookupDebug, setListLookupDebug] = useState("");
+      const [validateStatus, setValidateStatus] = useState("");
+      const [loading, setLoading] = useState(false);
+      const [showFieldExtra, setShowFieldExtra] = useState(false);
+      const [shouldScrollToDetails, setShouldScrollToDetails] = useState(false);
+      const [lookupSuggestions, setLookupSuggestions] = useState([]);
+      const [selectedSuggestionId, setSelectedSuggestionId] = useState("");
+      const [resolvedCtfId, setResolvedCtfId] = useState("");
+
+      const [optionItems, setOptionItems] = useState([]);
+      const [selection, setSelection] = useState({});
+      const [deleteSelection, setDeleteSelection] = useState({});
+      const [renameDrafts, setRenameDrafts] = useState({});
+      const [runError, setRunError] = useState("");
+      const [runResults, setRunResults] = useState([]);
+      const fieldDetailsRef = useRef(null);
+
+      const jwtDisplay = useMemo(() => (
+        jwtInfo ? JSON.stringify(formatJwtInfo(jwtInfo), null, 2) : ""
+      ), [jwtInfo]);
+
+      const jwtExpired = useMemo(() => isJwtExpiredByDay(jwtInfo), [jwtInfo]);
+
+      const fieldDetails = useMemo(() => {
+        if (!ctfField && !ctfInfo) return null;
+        return {
+          id: ctfInfo?.id || ctfField?.id || ctfId.trim() || "n/a",
+          name: ctfInfo?.name || ctfField?.name || "n/a",
+          required: String(!!ctfField?.required),
+          search: String(!!ctfField?.search),
+          hidden: String(!!ctfField?.hidden),
+          entityCategory: Array.isArray(ctfField?.entityCategory) ? ctfField.entityCategory : [],
+          multiselect: String(!!ctfField?.multiselect),
+          optionCount: optionItems.length,
+          optionNames: optionItems.map((x) => x.name)
+        };
+      }, [ctfField, ctfInfo, ctfId, optionItems]);
+
+      const rowLayout = useMemo(() => {
+        const longestNameChars = optionItems.reduce((m, item) => Math.max(m, String(item.name || "").length), 0);
+        const safeChars = Math.max(8, longestNameChars);
+        const nameColPx = Math.max(160, Math.min(420, Math.round(safeChars * 8.2) + 24));
+        const editorColPx = 320;
+        const totalWidthPx = nameColPx + editorColPx + 24;
+        return {
+          width: `${totalWidthPx}px`,
+          gridTemplateColumns: `${nameColPx}px ${editorColPx}px`
+        };
+      }, [optionItems]);
+
+      useEffect(() => {
+        if (!shouldScrollToDetails || !ctfInfo || !fieldDetailsRef.current) return;
+        fieldDetailsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        setShouldScrollToDetails(false);
+      }, [shouldScrollToDetails, ctfInfo]);
+
+      function clearValidationState() {
+        setValidated(false);
+        setCtfInfo(null);
+        setCtfField(null);
+        setValidateError("");
+        setInitialGetDebug("");
+        setListLookupDebug("");
+        setValidateStatus("");
+        setShowFieldExtra(false);
+        setShouldScrollToDetails(false);
+        setOptionItems([]);
+        setSelection({});
+        setDeleteSelection({});
+        setRenameDrafts({});
+        setRunError("");
+        setRunResults([]);
+        setLookupSuggestions([]);
+        setSelectedSuggestionId("");
+        setResolvedCtfId("");
+      }
+
+      function clearResults() {
+        clearValidationState();
+      }
+
+      function handleRestart() {
+        setCtfId(localStorage.getItem(STORAGE_KEYS.ctfId) || "");
+        setEnvChoice(localStorage.getItem(STORAGE_KEYS.envChoice) || "");
+        const storedToken = localStorage.getItem(STORAGE_KEYS.token) || "";
+        setToken(storedToken);
+        setJwtInfo(decodeJwt(storedToken.trim()));
+        clearValidationState();
+        setLoading(false);
+      }
+
+      async function validateById(trimmedToken, targetId) {
+        const debugUrl = `${baseUrl(envChoice)}/api/v3/customfields/${encodeURIComponent(String(targetId || "").trim())}`;
+        let resp;
+        try {
+          resp = await fetchCustomFieldById(envChoice, trimmedToken, targetId);
+        } catch (err) {
+          setInitialGetDebug([
+            `GET ${debugUrl}`,
+            "HTTP fetch failed",
+            "Response payload:",
+            String(err?.message || err)
+          ].join("\n"));
+          return setValidateError("Custom field lookup failed (request error).");
+        }
+        if (resp.status >= 200 && resp.status < 300) {
+          setInitialGetDebug("");
+        } else {
+          setInitialGetDebug([
+            `GET ${resp.url || debugUrl}`,
+            `HTTP ${resp.status}`,
+            "Response payload:",
+            extractErrorMessages(resp.text)
+          ].join("\n"));
+        }
+        if (resp.status === 401 || resp.status === 403) return setValidateError("Bearer token is invalid for this environment.");
+        if (resp.status === 404) return setValidateError("No custom field found for that CTF ID.");
+        if (resp.status < 200 || resp.status >= 300) return setValidateError(`Custom field lookup failed (${resp.status}).`);
+
+        const field = normalizeCustomField(resp.data);
+        if (!field) return setValidateError("Custom field response could not be parsed.");
+
+        const summary = summarizeCustomField(field);
+        if ((summary.type || "").toLowerCase() !== "list") {
+          return setValidateError(`CTF "${targetId}" is type "${summary.type || "unknown"}", not "list".`);
+        }
+        if (!summary.name || !summary.category) {
+          return setValidateError("Custom field GET response did not include required list metadata (name/category).");
+        }
+
+        const listLookupUrl = `${baseUrl(envChoice)}/api/v3/lists?${new URLSearchParams({
+          limit: "100",
+          listType: String(summary.name || "").trim(),
+          orderBy: "asc"
+        }).toString()}`;
+        let listResp;
+        try {
+          listResp = await fetchListOptions(envChoice, trimmedToken, summary.name);
+        } catch (err) {
+          setListLookupDebug([
+            `GET ${listLookupUrl}`,
+            "HTTP fetch failed",
+            "Response payload:",
+            String(err?.message || err)
+          ].join("\n"));
+          return setValidateError("List option lookup failed (request error).");
+        }
+        if (listResp.status >= 200 && listResp.status < 300) {
+          setListLookupDebug("");
+        } else {
+          setListLookupDebug([
+            `GET ${listResp.url || listLookupUrl}`,
+            `HTTP ${listResp.status}`,
+            "Response payload:",
+            extractErrorMessages(listResp.text)
+          ].join("\n"));
+        }
+        if (listResp.status === 401 || listResp.status === 403) return setValidateError("Bearer token is invalid for list options lookup.");
+        if (listResp.status < 200 || listResp.status >= 300) return setValidateError(`List option lookup failed (${listResp.status}).`);
+
+        const options = extractListOptions(listResp.items);
+        const initialSelection = Object.fromEntries(options.map((x) => [x.key, false]));
+        const initialDeleteSelection = Object.fromEntries(options.map((x) => [x.key, false]));
+        const initialDrafts = Object.fromEntries(options.map((x) => [x.key, x.name]));
+
+        setCtfInfo(summary);
+        setResolvedCtfId(String(summary.id || targetId || "").trim());
+        setCtfField(field);
+        setValidated(true);
+        setShouldScrollToDetails(true);
+        setOptionItems(options);
+        setSelection(initialSelection);
+        setDeleteSelection(initialDeleteSelection);
+        setRenameDrafts(initialDrafts);
+        setValidateStatus(`Validated ${String(summary.id || targetId || "").trim()}. Loaded ${options.length} list options for patch preview.`);
+      }
+
+      async function resolveByLabelName(trimmedToken, labelInput) {
+        const lookup = await fetchCustomFields(envChoice, trimmedToken);
+        if (lookup.status === 401 || lookup.status === 403) return setValidateError("Bearer token is invalid for this environment.");
+        if (lookup.status < 200 || lookup.status >= 300) return setValidateError(`Custom field list lookup failed (${lookup.status}).`);
+
+        const candidates = (lookup.items || [])
+          .map((item) => {
+            const id = String(item?.id || item?.albertId || item?.ctfId || item?.customFieldId || item?.fieldId || "").trim();
+            const labelName = String(item?.labelName || "").trim();
+            const status = String(item?.status || "").trim().toLowerCase();
+            if (status === "inactive") return null;
+            if (!id || !labelName) return null;
+            const score = scoreLabelNameMatch(labelInput, labelName);
+            if (score <= 0.6) return null;
+            return {
+              id,
+              labelName,
+              module: singularizeModule(item?.service),
+              type: String(item?.type || "").trim() || "unknown",
+              hidden: item?.hidden,
+              score
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => {
+            const hiddenDiff = hiddenRank(b.hidden) - hiddenRank(a.hidden);
+            if (hiddenDiff) return hiddenDiff;
+            if (b.score !== a.score) return b.score - a.score;
+            return a.labelName.localeCompare(b.labelName);
+          })
+          .slice(0, 5);
+
+        if (!candidates.length) return setValidateError("No labelName matches were found.");
+        setResolvedCtfId("");
+        setSelectedSuggestionId("");
+        setLookupSuggestions(candidates);
+      }
+
+      async function handleValidate() {
+        const trimmedInput = ctfId.trim();
+        const trimmedToken = token.trim();
+
+        if (!trimmedInput) return setValidateError("Custom field ID or Name is required.");
+        if (!envChoice) return setValidateError("Please select environment.");
+        if (!trimmedToken) return setValidateError("Bearer token is required.");
+        if (!decodeJwt(trimmedToken)) return setValidateError("Token does not appear to be a JWT (expected 3 segments).");
+
+        setValidateError("");
+        setInitialGetDebug("");
+        setListLookupDebug("");
+        setValidateStatus("");
+        setRunError("");
+        setRunResults([]);
+
+        setLoading(true);
+        try {
+          if (isCtfId(trimmedInput)) {
+            setSelectedSuggestionId("");
+            await validateById(trimmedToken, trimmedInput);
+          } else {
+            await resolveByLabelName(trimmedToken, trimmedInput);
+          }
+        } catch (err) {
+          setValidateError(`Validation failed: ${String(err?.message || err)}`);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      async function handleSuggestionSelect(item) {
+        const id = String(item?.id || "").trim();
+        if (!id) return;
+        setValidateError("");
+        setInitialGetDebug("");
+        setListLookupDebug("");
+        setValidateStatus("");
+        setRunError("");
+        setRunResults([]);
+        setValidated(false);
+        setCtfInfo(null);
+        setCtfField(null);
+        setShouldScrollToDetails(false);
+        setShowFieldExtra(false);
+        setOptionItems([]);
+        setSelection({});
+        setDeleteSelection({});
+        setRenameDrafts({});
+        setResolvedCtfId("");
+        setSelectedSuggestionId(id);
+
+        setLoading(true);
+        try {
+          await validateById(token.trim(), id);
+        } catch (err) {
+          setValidateError(`Validation failed: ${String(err?.message || err)}`);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      function toggleOption(key) {
+        setSelection((prev) => ({ ...prev, [key]: !prev[key] }));
+      }
+
+      async function handleRunChanges() {
+        const chosen = optionItems.filter((item) => selection[item.key]);
+        if (!chosen.length) {
+          setRunError("Select at least one list option to run.");
+          setRunResults([]);
+          return;
+        }
+
+        for (const item of chosen) {
+          if (!item.id) {
+            setRunError(`Option "${item.name}" is missing list option id; cannot call /api/v3/lists/{id}.`);
+            setRunResults([]);
+            return;
+          }
+          if (!deleteSelection[item.key]) {
+            const nextName = String(renameDrafts[item.key] || "").trim();
+            if (!nextName) {
+              setRunError(`Rename value is required for option "${item.name}".`);
+              setRunResults([]);
+              return;
+            }
+          }
+        }
+
+        const queuedRows = chosen.map((item) => ({
+          key: item.key,
+          optionName: item.name,
+          action: deleteSelection[item.key] ? "Delete" : "Rename",
+          change: deleteSelection[item.key] ? "-" : `${item.name} -> ${String(renameDrafts[item.key] || "").trim()}`,
+          statusLabel: "Queued",
+          statusKind: "queued",
+          httpStatus: "",
+          message: ""
+        }));
+        setRunError("");
+        setRunResults(queuedRows);
+        setLoading(true);
+        try {
+          const results = [...queuedRows];
+          function setRowOutcome(rowKey, patch) {
+            const idx = results.findIndex((r) => r.key === rowKey);
+            if (idx < 0) return;
+            results[idx] = { ...results[idx], ...patch };
+            setRunResults([...results]);
+          }
+
+          for (const item of chosen) {
+            const shouldDelete = !!deleteSelection[item.key];
+            if (shouldDelete) {
+              const resp = await deleteListOption(envChoice, token, item.id);
+              const ok = resp.status >= 200 && resp.status <= 299;
+              setRowOutcome(item.key, {
+                statusLabel: ok ? "Success" : "Failed",
+                statusKind: ok ? "success" : "failed",
+                httpStatus: String(resp.status),
+                message: ok ? "Deleted" : extractErrorMessages(resp.text)
+              });
+              continue;
+            }
+
+            const newName = String(renameDrafts[item.key] || "").trim();
+            const resp = await patchListOptionName(envChoice, token, item.id, item.name, newName);
+            const ok = resp.status >= 200 && resp.status <= 299;
+            setRowOutcome(item.key, {
+              statusLabel: ok ? "Success" : "Failed",
+              statusKind: ok ? "success" : "failed",
+              httpStatus: String(resp.status),
+              message: ok ? "Renamed" : extractErrorMessages(resp.text)
+            });
+            if (ok) {
+              setOptionItems((prev) => prev.map((row) => row.key === item.key ? { ...row, name: newName } : row));
+            }
+          }
+        } catch (err) {
+          setRunError(`Run failed: ${String(err?.message || err)}`);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      return (
+        <>
+          <div className="topbar">
+            <h1 style={{ margin: 0 }}>Patch List Options (React)</h1>
+            <button className="right" type="button" onClick={handleRestart}>Restart</button>
+          </div>
+
+          <p className="muted">
+            Use this Custom Field API Builder to patch list options for an existing list custom field. Validate the field first, then select individual options to rename or delete.
+          </p>
+
+          <div className="step">
+            <div className="title">List Option Inputs</div>
+            <div className="grid">
+              <div>
+                <label>Environment</label>
+                <div className="chips">
+                  {Object.keys(API_URLS).map((name) => {
+                    const selected = envChoice === name;
+                    return (
+                      <span
+                        key={name}
+                        className={`chip ${selected ? "selected" : ""}`}
+                        onClick={() => {
+                          setEnvChoice(name);
+                          localStorage.setItem(STORAGE_KEYS.envChoice, name);
+                          clearValidationState();
+                        }}
+                      >
+                        {name}
+                      </span>
+                    );
+                  })}
+                </div>
+
+                <label>Bearer Token</label>
+                <input
+                  type="password"
+                  placeholder="Paste token"
+                  aria-label="Bearer token"
+                  value={token}
+                  onChange={(e) => {
+                    const nextToken = e.target.value;
+                    const info = decodeJwt(nextToken.trim());
+                    const inferredEnv = inferEnvironmentFromIssuer(info?.iss);
+                    setToken(nextToken);
+                    setJwtInfo(info);
+                    if (inferredEnv) {
+                      setEnvChoice(inferredEnv);
+                      localStorage.setItem(STORAGE_KEYS.envChoice, inferredEnv);
+                    }
+                    localStorage.setItem(STORAGE_KEYS.token, nextToken);
+                    clearValidationState();
+                  }}
+                />
+                <pre className={jwtExpired ? "jwtExpired" : ""}>{jwtDisplay}</pre>
+              </div>
+
+              <div>
+                <label>Custom Field ID or Name</label>
+                <input
+                  type="text"
+                  placeholder="Example: CTF123 or Name"
+                  aria-label="CTF ID"
+                  value={ctfId}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setCtfId(v);
+                    localStorage.setItem(STORAGE_KEYS.ctfId, v);
+                    clearValidationState();
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      handleValidate();
+                    }
+                  }}
+                />
+                {lookupSuggestions.length ? (
+                  <div className="suggestionList">
+                    {lookupSuggestions.map((item) => (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`suggestionBtn ${selectedSuggestionId === item.id ? "selected" : ""}`}
+                        onClick={() => handleSuggestionSelect(item)}
+                        disabled={loading}
+                      >
+                        <div className="suggestionTitle">{item.labelName}</div>
+                        <div className="suggestionMeta">
+                          {item.id} | Module: {item.module || "unknown"} | Type: {item.type || "unknown"} | hidden: {item.hidden === true ? "true" : (item.hidden === false ? "false" : "unknown")}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : null}
+                {!loading && !isCtfId(ctfId.trim()) && lookupSuggestions.length > 0 && lookupSuggestions.length < 2 && !lookupSuggestions.some((item) => Number(item?.score || 0) >= 0.9) ? (
+                  <div className="hint">If fewer than 2 options appear and this environment has more than 200 custom fields, this search may miss matches due to the API limit.</div>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="error">{validateError}</div>
+            {initialGetDebug ? (
+              <>
+                <div className="hint">Initial custom field GET debug payload:</div>
+                <pre>{initialGetDebug}</pre>
+              </>
+            ) : null}
+            {listLookupDebug ? (
+              <>
+                <div className="hint">List options GET debug payload:</div>
+                <pre>{listLookupDebug}</pre>
+              </>
+            ) : null}
+            <div className="ctaRow">
+              <button type="button" onClick={clearResults} disabled={loading}>Clear Results</button>
+              <button className="primary" type="button" onClick={handleValidate} disabled={loading}>
+                {loading ? "Working..." : "Validate"}
+              </button>
+            </div>
+          </div>
+
+          {ctfInfo ? (
+            <div className="step" ref={fieldDetailsRef}>
+              <div className="title">Field Details</div>
+              <div className="statusBanner statusNeutral">
+                {ctfInfo.labelName || ctfInfo.name || "n/a"} is the list field in the selected environment.
+              </div>
+              <div className="ctaRow">
+                <button type="button" onClick={() => setShowFieldExtra((prev) => !prev)}>
+                  {showFieldExtra ? "Hide Additional Details" : "Show Additional Details"}
+                </button>
+              </div>
+
+              {showFieldExtra ? (
+                <>
+                  <div className="cards">
+                    <div className="card"><div className="cardLabel">ID</div><div className="cardValue">{fieldDetails?.id || "n/a"}</div></div>
+                    <div className="card"><div className="cardLabel">Name</div><div className="cardValue">{fieldDetails?.name || "n/a"}</div></div>
+                    <div className="card"><div className="cardLabel">Required</div><div className="cardValue">{fieldDetails?.required}</div></div>
+                    <div className="card"><div className="cardLabel">Search</div><div className="cardValue">{fieldDetails?.search}</div></div>
+                    <div className="card"><div className="cardLabel">Hidden</div><div className="cardValue">{fieldDetails?.hidden}</div></div>
+                    <div className="card"><div className="cardLabel">Entity Categories</div><div className="cardValue">{(fieldDetails?.entityCategory || []).join(", ") || "n/a"}</div></div>
+                    <div className="card"><div className="cardLabel">Multiselect</div><div className="cardValue">{fieldDetails?.multiselect}</div></div>
+                    <div className="card"><div className="cardLabel">List Option Count</div><div className="cardValue">{fieldDetails?.optionCount}</div></div>
+                  </div>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+          {validated ? (
+            <div className="step">
+              <div className="title">Patch List Options</div>
+              <div className="optionWorkbench">
+                {optionItems.map((item) => {
+                  const selected = !!selection[item.key];
+                  return (
+                    <div
+                      key={item.key}
+                      className={`optionRow ${selected ? "selected" : ""}`}
+                      style={selected ? rowLayout : undefined}
+                      onClick={() => toggleOption(item.key)}
+                      title={item.name}
+                    >
+                      <div className="optionLeft">
+                        <input
+                          type="checkbox"
+                          checked={selected}
+                          onChange={(e) => {
+                            e.stopPropagation();
+                            toggleOption(item.key);
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                        <span className="optionName">{item.name}</span>
+                      </div>
+                      {selected ? (
+                        <div className="optionRightInner" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            className="renameInput"
+                            type="text"
+                            placeholder="Rename option"
+                            value={renameDrafts[item.key] || ""}
+                            disabled={!!deleteSelection[item.key]}
+                            onChange={(e) => setRenameDrafts((prev) => ({ ...prev, [item.key]: e.target.value }))}
+                          />
+                          <label className="actionLabel">
+                            <input
+                              type="checkbox"
+                              checked={!!deleteSelection[item.key]}
+                              onChange={(e) => setDeleteSelection((prev) => ({ ...prev, [item.key]: e.target.checked }))}
+                            />
+                            Delete?
+                          </label>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="error">{runError}</div>
+              <div className="ctaRow">
+                <button className="primary" type="button" onClick={handleRunChanges} disabled={!validated || loading}>
+                  Run Changes
+                </button>
+              </div>
+
+              {runResults.length ? (
+                <>
+                  <div className="hint">List option API execution results:</div>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Option</th>
+                        <th>Action</th>
+                        <th>Change</th>
+                        <th>Status</th>
+                        <th>HTTP</th>
+                        <th>Details</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {runResults.map((row) => (
+                        <tr key={row.key}>
+                          <td>{row.optionName}</td>
+                          <td>{row.action}</td>
+                          <td>{row.change}</td>
+                          <td className={row.statusKind === "success" ? "resultSuccess" : (row.statusKind === "failed" ? "resultFailed" : "resultQueued")}>
+                            {row.statusLabel}
+                          </td>
+                          <td>{row.httpStatus || "-"}</td>
+                          <td>{row.message || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </>
+              ) : null}
+            </div>
+          ) : null}
+        </>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App />);
+  </script>
+</body>
+</html>

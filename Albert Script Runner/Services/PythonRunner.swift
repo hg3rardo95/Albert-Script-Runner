@@ -117,36 +117,49 @@ struct PythonRunner {
     /// Attempts to resolve a bundled Python runtime.
     /// Returns the interpreter URL plus an optional PYTHONHOME root.
     /// Preferred location:
-    ///   Contents/Resources/python-runtime/bin/python3 (or python3.12/3.13)
-    /// Alternate location (inside python-engine):
+    ///   Contents/Frameworks/pythonAlbert.framework/Resources/python-runtime/bin/python3
+    /// Alternate locations:
+    ///   Contents/Resources/python-runtime/bin/python3
     ///   Contents/Resources/python-engine/python-runtime/bin/python3
     /// Fallback (NOT standalone):
     ///   Contents/Resources/python-engine/.venv/bin/python
     nonisolated private static func bundledPythonInterpreter() throws -> (url: URL, pythonHome: URL?) {
+        let candidates = ["python3", "python3.12", "python3.13", "python"]
+
         // NOTE: We may run in two modes:
         //  - Bundled app (resourcesURL available and python-runtime possibly bundled)
         //  - Debug/dev mode (python-engine on disk next to the repo)
-        let resourcesURL = Bundle.main.resourceURL
+        //
+        // 1) Preferred: runtime inside the embedded pythonAlbert.framework.
+        if let frameworksURL = Bundle.main.privateFrameworksURL {
+            let frameworkRuntimeRoot = frameworksURL
+                .appendingPathComponent("pythonAlbert.framework", isDirectory: true)
+                .appendingPathComponent("Resources", isDirectory: true)
+                .appendingPathComponent("python-runtime", isDirectory: true)
+            let frameworkBin = frameworkRuntimeRoot.appendingPathComponent("bin", isDirectory: true)
+            for name in candidates {
+                let cand = frameworkBin.appendingPathComponent(name)
+                if FileManager.default.fileExists(atPath: cand.path) {
+                    return (cand, frameworkRuntimeRoot)
+                }
+            }
+        }
 
-        // 1) Preferred: a real bundled runtime at Contents/Resources/python-runtime/bin/
-        if let resourcesURL = resourcesURL {
-            let candidates = ["python3", "python3.12", "python3.13", "python"]
-
+        // 2) Alternate: runtime at Contents/Resources/python-runtime/bin/
+        if let resourcesURL = Bundle.main.resourceURL {
             let runtimeRoot = resourcesURL.appendingPathComponent("python-runtime", isDirectory: true)
             let runtimeBin = runtimeRoot.appendingPathComponent("bin", isDirectory: true)
             for name in candidates {
                 let cand = runtimeBin.appendingPathComponent(name)
                 if FileManager.default.fileExists(atPath: cand.path) {
-                    // For most portable runtimes, PYTHONHOME should be the runtime root.
                     return (cand, runtimeRoot)
                 }
             }
         }
 
         let engineDir = try bundledPythonEngineDirectory()
-        let candidates = ["python3", "python3.12", "python3.13", "python"]
 
-        // 2) Alternate: runtime bundled inside python-engine
+        // 3) Alternate: runtime bundled inside python-engine
         let engineRuntimeRoot = engineDir.appendingPathComponent("python-runtime", isDirectory: true)
         let engineRuntimeBin = engineRuntimeRoot.appendingPathComponent("bin", isDirectory: true)
         for name in candidates {
@@ -156,7 +169,7 @@ struct PythonRunner {
             }
         }
 
-        // 3) Fallback: venv interpreter inside python-engine
+        // 4) Fallback: venv interpreter inside python-engine
         let venvPython = engineDir.appendingPathComponent(".venv/bin/python")
         if FileManager.default.fileExists(atPath: venvPython.path) {
             // If it's a symlink to a system path, this will work only on the dev machine.
@@ -169,8 +182,10 @@ struct PythonRunner {
                         "  \(venvPython.path) -> \(dest)\n\n" +
                         "This will work on your machine but fail on coworkers' machines unless they have the same system Python installed.\n" +
                         "To make the app truly standalone, bundle a Python runtime at:\n" +
+                        "  Contents/Frameworks/pythonAlbert.framework/Resources/python-runtime/bin/python3\n" +
+                        "or at:\n" +
                         "  Contents/Resources/python-runtime/bin/python3\n" +
-                        "or inside python-engine at:\n" +
+                        "or inside python-engine (legacy path) at:\n" +
                         "  Contents/Resources/python-engine/python-runtime/bin/python3\n" +
                         "and re-export the app/DMG."
                     )
@@ -187,15 +202,34 @@ struct PythonRunner {
         throw PythonRunnerError.runtimeError(
             "No bundled Python interpreter found.\n\n" +
             "Expected one of:\n" +
-            "  - Contents/Resources/python-runtime/bin/python3 (recommended for standalone)\n" +
+            "  - Contents/Frameworks/pythonAlbert.framework/Resources/python-runtime/bin/python3 (preferred)\n" +
+            "  - Contents/Resources/python-runtime/bin/python3\n" +
             "  - Contents/Resources/python-engine/python-runtime/bin/python3\n" +
             "  - Contents/Resources/python-engine/.venv/bin/python (fallback)"
         )
     }
 
-    /// Best-effort PYTHONPATH for bundled site-packages inside python-engine/.venv.
-    /// This helps when we run the engine with a bundled runtime (python-runtime).
-    nonisolated private static func bundledSitePackagesPath() throws -> String? {
+    /// Best-effort PYTHONPATH resolver for bundled site-packages.
+    /// Preferred source: PYTHONHOME/lib/python3.X/site-packages
+    /// Fallback source: python-engine/.venv/lib/python3.X/site-packages
+    nonisolated private static func bundledSitePackagesPath(pythonHome: URL?) throws -> String? {
+        if let pythonHome {
+            let libDir = pythonHome.appendingPathComponent("lib", isDirectory: true)
+            var isDir: ObjCBool = false
+            if FileManager.default.fileExists(atPath: libDir.path, isDirectory: &isDir), isDir.boolValue {
+                let entries = (try? FileManager.default.contentsOfDirectory(atPath: libDir.path)) ?? []
+                let pyDirName = entries.first(where: { $0.hasPrefix("python3") })
+                if let pyDirName {
+                    let site = libDir
+                        .appendingPathComponent(pyDirName, isDirectory: true)
+                        .appendingPathComponent("site-packages", isDirectory: true)
+                    if FileManager.default.fileExists(atPath: site.path, isDirectory: &isDir), isDir.boolValue {
+                        return site.path
+                    }
+                }
+            }
+        }
+
         let engineDir = try bundledPythonEngineDirectory()
         let libDir = engineDir.appendingPathComponent(".venv/lib", isDirectory: true)
         var isDir: ObjCBool = false
@@ -218,8 +252,62 @@ struct PythonRunner {
         return nil
     }
 
+    /// Resolves a per-user writable path for Python bytecode cache output.
+    /// This avoids writes inside the signed .app/.framework bundle.
+    nonisolated private static func pythonBytecodeCachePrefixDirectory() throws -> URL {
+        let appSupport = try FileManager.default.url(
+            for: .applicationSupportDirectory,
+            in: .userDomainMask,
+            appropriateFor: nil,
+            create: true
+        )
+
+        let bundleName = (Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let bundleID = Bundle.main.bundleIdentifier?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let appFolderName: String
+        if let bundleName, !bundleName.isEmpty {
+            appFolderName = bundleName
+        } else if let bundleID, !bundleID.isEmpty {
+            appFolderName = bundleID
+        } else {
+            appFolderName = "Albert Script Runner"
+        }
+
+        let safeFolderName = appFolderName.replacingOccurrences(of: "/", with: "-")
+        let pycacheDir = appSupport
+            .appendingPathComponent(safeFolderName, isDirectory: true)
+            .appendingPathComponent("pycache", isDirectory: true)
+
+        try FileManager.default.createDirectory(at: pycacheDir, withIntermediateDirectories: true)
+        return pycacheDir
+    }
+
     /// Default timeout for python-engine commands.
     nonisolated static let defaultTimeoutSeconds: TimeInterval = 120
+
+    /// Redacts sensitive CLI args (for user-facing errors).
+    nonisolated private static func redactedArgsString(_ args: [String]) -> String {
+        var redacted: [String] = []
+        var i = 0
+
+        while i < args.count {
+            let part = args[i]
+            if part == "--token" {
+                redacted.append(part)
+                if i + 1 < args.count {
+                    redacted.append("<redacted>")
+                    i += 2
+                    continue
+                }
+            }
+            redacted.append(part)
+            i += 1
+        }
+
+        return redacted.joined(separator: " ")
+    }
 
     /// Runs the python engine with the given arguments.
     /// - Parameter args: Arguments AFTER engine.py (e.g. ["download-users", "--token", ...])
@@ -228,8 +316,12 @@ struct PythonRunner {
     ///
     /// NOTE: Marked `nonisolated` to prevent Swift 6 actor-isolation issues if the type
     /// ever becomes annotated (directly or via extension) with @MainActor.
-    nonisolated static func run(args: [String]) throws -> String {
+    nonisolated static func run(
+        args: [String],
+        timeoutSeconds: TimeInterval = defaultTimeoutSeconds
+    ) throws -> String {
         let process = Process()
+        let effectiveTimeout = max(1, timeoutSeconds)
 
         let python = try bundledPythonInterpreter()
         let pythonURL = python.url
@@ -251,7 +343,7 @@ struct PythonRunner {
             env["PYTHONHOME"] = home.path
         }
 
-        if let site = try? bundledSitePackagesPath() {
+        if let site = try? bundledSitePackagesPath(pythonHome: python.pythonHome) {
             // Prepend bundled site-packages so imports resolve when using a bundled runtime.
             if let existing = env["PYTHONPATH"], !existing.isEmpty {
                 env["PYTHONPATH"] = site + ":" + existing
@@ -259,6 +351,13 @@ struct PythonRunner {
                 env["PYTHONPATH"] = site
             }
         }
+
+        // Keep bytecode caching enabled, but force pyc output outside the app bundle.
+        let pycachePrefix = try pythonBytecodeCachePrefixDirectory()
+        env["PYTHONPYCACHEPREFIX"] = pycachePrefix.path
+#if DEBUG
+        print("[PythonRunner] PYTHONPYCACHEPREFIX=\(pycachePrefix.path)")
+#endif
 
         process.environment = env
 
@@ -305,7 +404,7 @@ struct PythonRunner {
         }
 
         // Wait with timeout
-        let waitResult = done.wait(timeout: .now() + defaultTimeoutSeconds)
+        let waitResult = done.wait(timeout: .now() + effectiveTimeout)
         if waitResult == .timedOut {
             process.terminate()
             _ = done.wait(timeout: .now() + 5) // brief grace period
@@ -316,7 +415,7 @@ struct PythonRunner {
             let out = String(data: stdoutData, encoding: .utf8) ?? ""
             let err = String(data: stderrData, encoding: .utf8) ?? ""
             throw PythonRunnerError.runtimeError(
-                "Python command timed out after \(Int(defaultTimeoutSeconds))s.\nArgs: \(args.joined(separator: " "))\n\nSTDERR:\n\(err)\n\nSTDOUT:\n\(out)"
+                "Python command timed out after \(Int(effectiveTimeout))s.\nArgs: \(redactedArgsString(args))\n\nSTDERR:\n\(err)\n\nSTDOUT:\n\(out)"
             )
         }
 
@@ -340,7 +439,7 @@ struct PythonRunner {
         if process.terminationStatus != 0 {
             let message = stderr.isEmpty ? stdout : stderr
             throw PythonRunnerError.runtimeError(
-                "Python exited with code \(process.terminationStatus).\nArgs: \(args.joined(separator: " "))\n\n\(message)"
+                "Python exited with code \(process.terminationStatus).\nArgs: \(redactedArgsString(args))\n\n\(message)"
             )
         }
 

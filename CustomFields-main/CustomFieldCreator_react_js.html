@@ -1,0 +1,1766 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Custom Field API Builder (React)</title>
+  <style>
+    body{
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      max-width: 980px;
+      margin: 28px auto;
+      padding: 0 16px 70px;
+      line-height: 1.35;
+    }
+    h1{ font-size: 22px; margin: 0 0 6px; }
+    .muted{ opacity:.75; margin:0 0 16px; }
+    .topbar{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .pill{ font-size: 12px; border: 1px solid #ddd; border-radius: 999px; padding: 3px 8px; }
+    .right{ margin-left:auto; }
+    button{
+      padding: 9px 12px;
+      border-radius: 8px;
+      border: 1px solid #ccc;
+      background: #f7f7f7;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button.primary{ background:#111; color:#fff; border-color:#111; }
+    button:disabled{ opacity:.5; cursor:not-allowed; }
+    .step{
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 12px;
+      margin: 10px 0;
+      background: #fff;
+    }
+    .step.clickable{
+      cursor: pointer;
+    }
+    .step.clickable:hover{
+      border-color: #cfcfcf;
+      background: #fcfcfc;
+    }
+    .stepHeader{
+      display:flex;
+      gap:10px;
+      align-items:baseline;
+    }
+    .num{ font-weight: 750; width: 26px; }
+    .title{ font-weight: 650; flex:1; }
+    .status{ font-size: 12px; opacity: .7; }
+    .summary{
+      margin-top: 6px;
+      font-size: 13px;
+      opacity: .9;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .editArea{
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid #eee;
+    }
+    label{ display:block; margin: 8px 0 6px; font-weight: 650; }
+    input[type="text"], input[type="password"], input[type="number"], select{
+      width:100%;
+      padding:10px 12px;
+      border:1px solid #ccc;
+      border-radius:8px;
+      font-size:14px;
+      box-sizing:border-box;
+      background:#fff;
+    }
+    .row{ display:flex; gap:10px; flex-wrap:wrap; }
+    .row > *{ flex:1 1 240px; }
+    .hint{ font-size: 12px; opacity:.75; margin-top:6px; }
+    .inlinecheck{ display:flex; align-items:center; gap:10px; margin-top: 8px; }
+    .inlinecheck input{ transform: scale(1.1); }
+    .chips{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      margin: 6px 0 8px;
+    }
+    .chip{
+      border: 1px solid #d0d0d0;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+      background: #f7f7f7;
+      user-select: none;
+    }
+    .chip.selected{
+      border-color: #111;
+      background: #111;
+      color: #fff;
+    }
+    .dupTable{
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+    .dupTable th,
+    .dupTable td{
+      border: 1px solid #e0e0e0;
+      padding: 6px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    .dupTable th{
+      background: #f4f4f4;
+      font-weight: 650;
+    }
+    pre{
+      margin: 10px 0 0;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+      overflow:auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 12px;
+    }
+    pre.compact{
+      max-height: none;
+      overflow: visible;
+    }
+    pre.jwtExpired{
+      border-color: #b00020;
+      background: #fff5f5;
+      color: #b00020;
+    }
+    pre.apiSuccess{
+      border-color: #0a6b3b;
+      background: #f2fbf6;
+      color: #0a6b3b;
+    }
+    pre.apiFail{
+      border-color: #b00020;
+      background: #fff5f5;
+      color: #b00020;
+    }
+    .responseSummary{
+      font-size: 14px;
+      font-weight: 700;
+      margin-top: 8px;
+      line-height: 1.4;
+    }
+    .panel{
+      border: 1px solid #ddd;
+      border-radius: 10px;
+      padding: 12px;
+      margin-top: 16px;
+      background: #fafafa;
+    }
+    .statusBanner{
+      margin-top: 10px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+    .statusGood{
+      background: #eaf8ee;
+      color: #0f5f2a;
+      border-color: #b9e7c5;
+    }
+    .statusBad{
+      background: #fff0f0;
+      color: #8b0000;
+      border-color: #ffc8c8;
+    }
+    .statusNeutral{
+      background: #f6f6f6;
+      color: #222;
+      border-color: #e0e0e0;
+    }
+    .ctaRow{
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      flex-wrap: wrap;
+    }
+    .hidden{ display:none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const { useEffect, useMemo, useRef, useState } = React;
+
+    const API_URLS = {
+      "Sandbox": "https://sandbox.albertinvent.com",
+      "Production": "https://app.albertinvent.com",
+      "Dev Environment": "https://dev.albertinventdev.com",
+    };
+    const MODULES = ["Inventory", "Tasks", "Lots", "Data Templates", "Parameter Groups", "Projects", "Users"];
+    const MODULES_DICT = {
+      "Inventory": "inventories",
+      "Tasks": "tasks",
+      "Lots": "lots",
+      "Data Templates": "datatemplates",
+      "Parameter Groups": "parametergroups",
+      "Projects": "projects",
+      "Users": "users"
+    };
+    const INVENTORY_CATEGORIES = ["RawMaterials", "Consumables", "Equipment", "Formulas"];
+    const TASK_CATEGORIES = ["Property", "Batch", "General"];
+    const FUZZY_THRESHOLD = 0.8;
+
+    const defaults = () => ({
+      module: "",
+      inventoryLookup: "",
+      categoriesRaw: "",
+
+      fieldType: "",
+      listType: "businessDefined",
+      listSelectMode: "single",
+
+      backendName: "",
+      frontendName: "",
+
+      required: false,
+      searchEnabled: false,
+      hidden: false,
+      visibility: "create_and_details",
+
+      specifyMinMax: false,
+      minLen: "",
+      maxLen: "",
+
+      hasDefault: false,
+      defaultValueRaw: "",
+
+      testApi: false,
+      envChoice: "",
+      token: "",
+      duplicateCheck: true,
+      jwtInfo: null,
+
+      duplicateMatches: [],
+      duplicateBest: null,
+      duplicateChecked: false,
+
+      apiResponseText: "",
+      apiResponseStatus: null,
+      apiAlbertId: null,
+      apiError: "",
+
+      addListOptions: false,
+      listOptionsRaw: "",
+      listOptionResponses: [],
+      listOptionStarted: false,
+      listOptionInProgress: false,
+      listOptionProcessed: 0,
+      listOptionTotal: 0,
+      listOptionSuccess: 0,
+      listOptionFailures: []
+    });
+
+    function parseCommaList(s) {
+      const raw = String(s || "").trim();
+      if (!raw) return [];
+      return raw.split(",").map(x => x.trim()).filter(Boolean);
+    }
+
+    function toIntOrNull(v) {
+      if (v === "" || v === null || typeof v === "undefined") return null;
+      const n = Number(v);
+      if (!Number.isFinite(n)) return null;
+      return Math.trunc(n);
+    }
+
+    function coerceDefaultValue(fieldType, raw, listSelectMode) {
+      const s = String(raw ?? "").trim();
+      if (!s) return null;
+      if (fieldType === "number") {
+        const n = Number(s);
+        return Number.isFinite(n) ? n : s;
+      }
+      if (fieldType === "list") {
+        const vals = parseCommaList(s);
+        if (listSelectMode === "multi") return vals;
+        return vals[0] || null;
+      }
+      return s;
+    }
+
+    function compact(obj) {
+      return Object.fromEntries(Object.entries(obj).filter(([,v]) => v !== null && v !== undefined));
+    }
+
+    function baseUrl(envChoice) {
+      const base = API_URLS[envChoice] || "";
+      return base.replace(/\/+$/,"" );
+    }
+
+    function apiUrl(envChoice, path) {
+      const base = baseUrl(envChoice);
+      return base ? `${base}${path}` : "";
+    }
+
+    function decodeJwt(token) {
+      const parts = token.split(".");
+      if (parts.length !== 3) return null;
+      try {
+        const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+        return {
+          tenantId: payload.tenantId,
+          partition: payload.partition,
+          class: payload.class,
+          name: payload.name,
+          email: payload.email,
+          iss: payload.iss,
+          exp: payload.exp
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    function inferEnvironmentFromIssuer(iss) {
+      const raw = String(iss || "").trim();
+      if (!raw) return "";
+
+      let host = raw.toLowerCase();
+      try {
+        const parsed = new URL(raw);
+        host = (parsed.hostname || "").toLowerCase();
+      } catch {
+        // Not a full URL; fall back to direct suffix matching on the raw issuer text.
+      }
+
+      if (host.endsWith(".demo")) return "Sandbox";
+      if (host.endsWith(".app2")) return "Production";
+      if (host.endsWith(".dev")) return "Dev Environment";
+      return "";
+    }
+
+    function formatJwtInfo(info) {
+      if (!info) return null;
+      const out = { ...info };
+      if ("exp" in out) delete out.exp;
+      const expMs = Number(info.exp) * 1000;
+      if (Number.isFinite(expMs)) {
+        out.expiration = new Date(expMs).toLocaleString();
+      }
+      return out;
+    }
+
+    function formatApiResponse(text) {
+      if (!text) return "";
+      try {
+        const obj = JSON.parse(text);
+        return JSON.stringify(obj, null, 2);
+      } catch {
+        return text;
+      }
+    }
+
+    function extractErrorMessages(raw) {
+      const messages = [];
+      const seen = new Set();
+
+      function pushMessage(msg) {
+        const text = String(msg || "").trim();
+        if (!text || seen.has(text)) return;
+        seen.add(text);
+        messages.push(text);
+      }
+
+      function walk(value) {
+        if (value === null || value === undefined) return;
+        if (typeof value === "string") return;
+        if (Array.isArray(value)) return value.forEach(walk);
+        if (typeof value === "object") {
+          if (typeof value.msg === "string") pushMessage(value.msg);
+          if (typeof value.message === "string") pushMessage(value.message);
+          Object.values(value).forEach(walk);
+        }
+      }
+
+      let parsed = raw;
+      if (typeof raw === "string") {
+        const trimmed = raw.trim();
+        if (!trimmed) return "(empty response body)";
+        try { parsed = JSON.parse(trimmed); }
+        catch { return trimmed; }
+      }
+
+      walk(parsed);
+      if (messages.length) return messages.join("\n");
+      if (typeof parsed === "string") return parsed;
+      try { return JSON.stringify(parsed, null, 2); }
+      catch { return String(parsed); }
+    }
+
+    function similarity(a, b) {
+      const sa = a.toLowerCase();
+      const sb = b.toLowerCase();
+      if (!sa || !sb) return 0;
+      const dp = Array(sa.length + 1).fill(0).map(() => Array(sb.length + 1).fill(0));
+      for (let i = 0; i <= sa.length; i++) dp[i][0] = i;
+      for (let j = 0; j <= sb.length; j++) dp[0][j] = j;
+      for (let i = 1; i <= sa.length; i++) {
+        for (let j = 1; j <= sb.length; j++) {
+          const cost = sa[i - 1] === sb[j - 1] ? 0 : 1;
+          dp[i][j] = Math.min(
+            dp[i - 1][j] + 1,
+            dp[i][j - 1] + 1,
+            dp[i - 1][j - 1] + cost
+          );
+        }
+      }
+      const dist = dp[sa.length][sb.length];
+      const maxLen = Math.max(sa.length, sb.length) || 1;
+      return 1 - dist / maxLen;
+    }
+
+    async function fetchCustomFields(envChoice, token) {
+      const url = apiUrl(envChoice, "/api/v3/customfields/?limit=200");
+      const resp = await fetch(url, {
+        method: "GET",
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const status = resp.status;
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      let items = [];
+      if (Array.isArray(data)) items = data;
+      if (data && Array.isArray(data.Items)) items = data.Items;
+      if (data && Array.isArray(data.items)) items = data.items;
+      return { status, text, items };
+    }
+
+    async function sendCreateField(envChoice, token, payload) {
+      const url = apiUrl(envChoice, "/api/v3/customfields");
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const status = resp.status;
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      return { status, text, data };
+    }
+
+    async function sendListOption(envChoice, token, optionName, backendName, listType) {
+      const url = apiUrl(envChoice, "/api/v3/lists");
+      const payload = {
+        name: optionName,
+        listType: backendName.trim(),
+        category: listType
+      };
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+      const status = resp.status;
+      const text = await resp.text();
+      let data = null;
+      try { data = JSON.parse(text); } catch {}
+      const albertId = data && (data.albertId || data.id || data.listId) ? (data.albertId || data.id || data.listId) : null;
+      return { status, text, albertId };
+    }
+
+    function buildPayload(state) {
+      const categories = parseCommaList(state.categoriesRaw);
+      const lkpRow = state.module === "Inventory"
+        ? (state.inventoryLookup === "lookup_row" || state.inventoryLookup === "both")
+        : null;
+      const lkpColumn = state.module === "Inventory"
+        ? (state.inventoryLookup === "lookup_column" || state.inventoryLookup === "both")
+        : null;
+      const minLen = toIntOrNull(state.minLen);
+      const maxLen = toIntOrNull(state.maxLen);
+
+      const payload = {
+        service: MODULES_DICT[state.module],
+        name: state.backendName.trim(),
+        labelName: state.frontendName.trim(),
+        type: state.fieldType,
+        required: !!state.required,
+        search: state.fieldType !== "number" ? !!state.searchEnabled : null,
+        hidden: state.hidden ? true : null,
+        ui_components: state.visibility === "details_only" ? ["details"] : ["create", "details"],
+        min: minLen,
+        max: maxLen,
+        default: state.hasDefault ? coerceDefaultValue(state.fieldType, state.defaultValueRaw, state.listSelectMode) : null,
+        multiselect: state.fieldType === "list" ? (state.listSelectMode === "multi") : null,
+        category: state.fieldType === "list" ? state.listType : null,
+        lkpRow,
+        lkpColumn,
+        entityCategory: (state.module === "Inventory" || state.module === "Tasks") && categories.length ? categories : null
+      };
+      return compact(payload);
+    }
+
+    function CustomFieldCreatorApp() {
+      const [state, setState] = useState(defaults());
+      const [currentIndex, setCurrentIndex] = useState(0);
+      const [editingIndex, setEditingIndex] = useState(null);
+      const [payloadHold, setPayloadHold] = useState(false);
+      const [lastRenderWasLast, setLastRenderWasLast] = useState(false);
+      const [suppressPayloadHoldOnce, setSuppressPayloadHoldOnce] = useState(false);
+      const [suppressScrollOnce, setSuppressScrollOnce] = useState(false);
+      const [stepError, setStepError] = useState("");
+
+      const focusNextIdRef = useRef(null);
+      const haltAdvanceOnceRef = useRef(false);
+
+      function getEditIndexFromPrefix(prefix) {
+        const m = /^edit_(\d+)_/.exec(String(prefix || ""));
+        if (!m) return null;
+        const n = Number(m[1]);
+        return Number.isInteger(n) ? n : null;
+      }
+
+      function applyModuleChange(nextModule, prefix) {
+        const nextState = defaults();
+        nextState.module = nextModule;
+
+        setState(nextState);
+        setStepError("");
+        setPayloadHold(false);
+        setEditingIndex(null);
+        setCurrentIndex(1);
+      }
+
+      function applyFieldTypeChange(nextFieldType, prefix) {
+        const inEditMode = String(prefix || "").startsWith("edit_");
+        const editIdx = getEditIndexFromPrefix(prefix);
+
+        setState(prev => {
+          const nextState = defaults();
+          nextState.module = prev.module;
+          nextState.inventoryLookup = prev.module === "Inventory" ? prev.inventoryLookup : "";
+          nextState.categoriesRaw = (prev.module === "Inventory" || prev.module === "Tasks") ? prev.categoriesRaw : "";
+          nextState.fieldType = nextFieldType;
+          return nextState;
+        });
+
+        setStepError("");
+        setPayloadHold(false);
+        setEditingIndex(null);
+        if (inEditMode) {
+          setCurrentIndex(editIdx !== null ? (editIdx + 1) : (currentIndex + 1));
+        } else {
+          setCurrentIndex(prev => prev + 1);
+        }
+      }
+
+      const steps = useMemo(() => {
+        const activeSteps = [];
+
+        const pushStep = (step) => activeSteps.push(step);
+
+        pushStep({
+          id: "module",
+          title: "Which module is this for?",
+          required: true,
+          isApplicable: () => true,
+          summary: () => state.module || "Not selected.",
+          render: (p) => (
+            <>
+              <label>Module</label>
+              <div className="chips" id={`${p}moduleChips`}>
+                {MODULES.map((v) => {
+                  const selected = state.module === v;
+                  return (
+                    <span
+                      key={v}
+                      className={`chip ${selected ? "selected" : ""}`}
+                      data-module={v}
+                      onClick={() => {
+                        if (state.module === v) return;
+                        applyModuleChange(v, p);
+                      }}
+                    >
+                      {v}
+                    </span>
+                  );
+                })}
+              </div>
+            </>
+          ),
+          validate: () => state.module ? "" : "Please select a module."
+        });
+
+        pushStep({
+          id: "inventoryLookup",
+          title: "Inventory lookup behavior (press Skip to leave blank)",
+          required: false,
+          isApplicable: () => state.module === "Inventory",
+          summary: () => state.inventoryLookup || "(none)",
+          render: (p) => (
+            <>
+              <label>Lookup</label>
+              <select
+                id={`${p}invLookupSel`}
+                value={state.inventoryLookup}
+                onChange={(e) => {
+                  const val = e.target.value || "";
+                  setState(prev => ({ ...prev, inventoryLookup: val }));
+                  if (val && !p.startsWith("edit_")) {
+                    goNext();
+                  }
+                }}
+              >
+                <option value="">Skip</option>
+                <option value="lookup_row">Look up row</option>
+                <option value="lookup_column">Look up column</option>
+                <option value="both">Both</option>
+                <option value="neither">Neither</option>
+              </select>
+            </>
+          )
+        });
+
+        pushStep({
+          id: "categories",
+          title: "Entity categories",
+          required: false,
+          isApplicable: () => state.module === "Inventory" || state.module === "Tasks",
+          summary: () => state.categoriesRaw.trim() || "(none)",
+          render: (p) => (
+            <>
+              <label>Categories</label>
+              <div className="chips" id={`${p}catsChips`}>
+                {(state.module === "Inventory" ? INVENTORY_CATEGORIES : TASK_CATEGORIES).map((cat) => {
+                  const selected = parseCommaList(state.categoriesRaw).includes(cat);
+                  return (
+                    <span
+                      key={cat}
+                      className={`chip ${selected ? "selected" : ""}`}
+                      data-cat={cat}
+                      onClick={() => {
+                        const list = parseCommaList(state.categoriesRaw);
+                        const idx = list.indexOf(cat);
+                        if (idx >= 0) list.splice(idx, 1);
+                        else list.push(cat);
+                        setState(prev => ({ ...prev, categoriesRaw: list.join(", ") }));
+                      }}
+                    >
+                      {cat}
+                    </span>
+                  );
+                })}
+              </div>
+              <div className="hint">Select one or more, or leave blank to skip.</div>
+            </>
+          ),
+          validate: () => ""
+        });
+
+        pushStep({
+          id: "fieldType",
+          title: "Field type",
+          required: true,
+          isApplicable: () => true,
+          summary: () => state.fieldType || "Not selected.",
+          render: (p) => (
+            <>
+              <label>Type</label>
+              <div className="chips" id={`${p}fieldTypeChips`}>
+                {["number", "string", "list"].map((v) => {
+                  const label = v === "number" ? "Number" : v === "string" ? "String" : "List";
+                  const selected = state.fieldType === v;
+                  return (
+                    <span
+                      key={v}
+                      className={`chip ${selected ? "selected" : ""}`}
+                      data-fieldtype={v}
+                      onClick={() => {
+                        if (state.fieldType === v) return;
+                        applyFieldTypeChange(v, p);
+                      }}
+                    >
+                      {label}
+                    </span>
+                  );
+                })}
+              </div>
+            </>
+          ),
+          validate: () => state.fieldType ? "" : "Please select a field type."
+        });
+
+        pushStep({
+          id: "listType",
+          title: "List type",
+          required: true,
+          isApplicable: () => state.fieldType === "list",
+          summary: () => state.listType,
+          render: (p) => (
+            <>
+              <label>List type</label>
+              <select
+                id={`${p}listTypeSel`}
+                value={state.listType}
+                onChange={(e) => setState(prev => ({ ...prev, listType: e.target.value }))}
+              >
+                <option value="businessDefined">businessDefined</option>
+                <option value="userDefined">userDefined</option>
+              </select>
+            </>
+          ),
+          validate: () => state.listType ? "" : "Please select a list type."
+        });
+
+        pushStep({
+          id: "listMode",
+          title: "List selection mode",
+          required: true,
+          isApplicable: () => state.fieldType === "list",
+          summary: () => state.listSelectMode,
+          render: (p) => (
+            <>
+              <label>List selection mode</label>
+              <select
+                id={`${p}listModeSel`}
+                value={state.listSelectMode}
+                onChange={(e) => setState(prev => ({ ...prev, listSelectMode: e.target.value }))}
+              >
+                <option value="single">single</option>
+                <option value="multi">multi</option>
+              </select>
+            </>
+          ),
+          validate: () => state.listSelectMode ? "" : "Please select a list selection mode."
+        });
+
+        pushStep({
+          id: "backendName",
+          title: "Back end name",
+          required: true,
+          isApplicable: () => true,
+          summary: () => state.backendName.trim() || "Not set.",
+          render: (p) => (
+            <>
+              <label>Back end name</label>
+              <input
+                id={`${p}backendInput`}
+                type="text"
+                placeholder="e.g. assay_temperature_c"
+                value={state.backendName}
+                onChange={(e) => setState(prev => ({ ...prev, backendName: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (collapseEditingIfNeeded("backendName")) return;
+                    focusNextIdRef.current = "cur_frontendInput";
+                    goNext();
+                  }
+                }}
+              />
+            </>
+          ),
+          validate: () => state.backendName.trim() ? "" : "Back end name is required."
+        });
+
+        pushStep({
+          id: "frontendName",
+          title: "Front end name",
+          required: true,
+          isApplicable: () => true,
+          summary: () => state.frontendName.trim() || "Not set.",
+          render: (p) => (
+            <>
+              <label>Front end name</label>
+              <input
+                id={`${p}frontendInput`}
+                type="text"
+                placeholder="e.g. Assay Temperature (°C)"
+                value={state.frontendName}
+                onChange={(e) => setState(prev => ({ ...prev, frontendName: e.target.value }))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (collapseEditingIfNeeded("frontendName")) return;
+                    goNext();
+                  }
+                }}
+              />
+            </>
+          ),
+          validate: () => state.frontendName.trim() ? "" : "Front end name is required."
+        });
+
+        pushStep({
+          id: "required",
+          title: "Field is required?",
+          required: false,
+          isApplicable: () => true,
+          summary: () => state.required ? "Yes" : "No",
+          render: (p) => (
+            <>
+              <label>Required</label>
+              <select
+                id={`${p}requiredSel`}
+                value={state.required ? "yes" : "no"}
+                onChange={(e) => setState(prev => ({ ...prev, required: e.target.value === "yes" }))}
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+            </>
+          )
+        });
+
+        pushStep({
+          id: "searchEnabled",
+          title: "Enabled in search?",
+          required: false,
+          isApplicable: () => state.fieldType !== "number",
+          summary: () => state.searchEnabled ? "Yes" : "No",
+          render: (p) => (
+            <>
+              <label>Enabled in search</label>
+              <select
+                id={`${p}searchSel`}
+                value={state.searchEnabled ? "yes" : "no"}
+                onChange={(e) => setState(prev => ({ ...prev, searchEnabled: e.target.value === "yes" }))}
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+            </>
+          )
+        });
+
+        pushStep({
+          id: "hidden",
+          title: "Hidden?",
+          required: false,
+          isApplicable: () => true,
+          summary: () => state.hidden ? "Yes" : "No",
+          render: (p) => (
+            <>
+              <label>Hidden</label>
+              <select
+                id={`${p}hiddenSel`}
+                value={state.hidden ? "yes" : "no"}
+                onChange={(e) => setState(prev => ({ ...prev, hidden: e.target.value === "yes" }))}
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+            </>
+          )
+        });
+
+        pushStep({
+          id: "visibility",
+          title: "Visibility",
+          required: false,
+          isApplicable: () => true,
+          summary: () => state.visibility,
+          render: (p) => (
+            <>
+              <label>Show where?</label>
+              <select
+                id={`${p}visSel`}
+                value={state.visibility}
+                onChange={(e) => setState(prev => ({ ...prev, visibility: e.target.value }))}
+              >
+                <option value="details_only">details_only</option>
+                <option value="create_and_details">create_and_details</option>
+              </select>
+            </>
+          ),
+          validate: () => state.visibility ? "" : "Please choose a visibility option."
+        });
+
+        pushStep({
+          id: "minMax",
+          title: "Specify min/max?",
+          required: false,
+          isApplicable: () => true,
+          summary: () => {
+            if (!state.specifyMinMax) return "Using defaults";
+            return `min=${state.minLen || "(blank)"}, max=${state.maxLen || "(blank)"}`;
+          },
+          render: (p) => (
+            <>
+              <label>Specify min/max?</label>
+              <select
+                id={`${p}specifySel`}
+                value={state.specifyMinMax ? "yes" : "no"}
+                onChange={(e) => {
+                  const yes = e.target.value === "yes";
+                  setState(prev => ({ ...prev, specifyMinMax: yes }));
+                }}
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+              <div className="row" style={{ marginTop: "10px", display: state.specifyMinMax ? "" : "none" }} id={`${p}minMaxRow`}>
+                <div>
+                  <label>Min</label>
+                  <input
+                    id={`${p}minInput`}
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={state.minLen}
+                    onChange={(e) => setState(prev => ({ ...prev, minLen: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <label>Max</label>
+                  <input
+                    id={`${p}maxInput`}
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={state.maxLen}
+                    onChange={(e) => setState(prev => ({ ...prev, maxLen: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="hint">
+                {state.fieldType === "list"
+                  ? "Lists: min/max = number of selections."
+                  : "Strings/numbers: min/max = character length."}
+              </div>
+            </>
+          ),
+          validate: () => {
+            if (!state.specifyMinMax) return "";
+            const min = toIntOrNull(state.minLen);
+            const max = toIntOrNull(state.maxLen);
+            if (min === null || max === null) return "Min and Max are required.";
+            if (min > max) return "Min must be less than or equal to Max.";
+            if (state.fieldType === "list" && state.listSelectMode === "multi" && max <= 1) {
+              return "Multi-select requires Max to be greater than 1.";
+            }
+            return "";
+          },
+          onNext: () => {
+            if (!state.specifyMinMax) {
+              if (state.fieldType === "list") {
+                setState(prev => ({ ...prev, minLen: "0", maxLen: "1" }));
+              } else if (state.fieldType === "string") {
+                setState(prev => ({ ...prev, minLen: "1", maxLen: "255" }));
+              } else {
+                setState(prev => ({ ...prev, minLen: "", maxLen: "" }));
+              }
+            }
+          }
+        });
+
+        pushStep({
+          id: "defaultValue",
+          title: "Use a default value?",
+          required: false,
+          isApplicable: () => true,
+          summary: () => state.hasDefault ? (state.defaultValueRaw.trim() || "(blank)") : "No default",
+          render: (p) => (
+            <>
+              <label>Use a default value?</label>
+              <select
+                id={`${p}defaultSel`}
+                value={state.hasDefault ? "yes" : "no"}
+                onChange={(e) => {
+                  const yes = e.target.value === "yes";
+                  setState(prev => ({
+                    ...prev,
+                    hasDefault: yes,
+                    defaultValueRaw: yes ? prev.defaultValueRaw : ""
+                  }));
+                }}
+              >
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+              <div style={{ marginTop: "10px", display: state.hasDefault ? "" : "none" }} id={`${p}defaultRow`}>
+                <label>Default value</label>
+                <input
+                  id={`${p}defaultInput`}
+                  type="text"
+                  value={state.defaultValueRaw}
+                  onChange={(e) => setState(prev => ({ ...prev, defaultValueRaw: e.target.value }))}
+                />
+              </div>
+            </>
+          ),
+          validate: () => ""
+        });
+
+        pushStep({
+          id: "testApi",
+          title: "Test the API now?",
+          required: false,
+          showRequirement: false,
+          isApplicable: () => true,
+          summary: () => state.testApi ? "Yes" : "No",
+          render: () => (<div></div>)
+        });
+
+        pushStep({
+          id: "envToken",
+          title: "Environment and bearer token",
+          required: true,
+          isApplicable: () => state.testApi,
+          summary: () => {
+            const envSummary = state.envChoice || "Environment not selected";
+            if (!state.token) return `${envSummary}; token not set`;
+            return `${envSummary}; token set`;
+          },
+          render: (p) => (
+            <>
+              <label>Environment</label>
+              <div className="chips" id={`${p}envChips`}>
+                {Object.keys(API_URLS).map(v => {
+                  const selected = state.envChoice === v;
+                  return (
+                    <span
+                      key={v}
+                      className={`chip ${selected ? "selected" : ""}`}
+                      data-env={v}
+                      onClick={() => {
+                        if (state.envChoice === v) return;
+                        setState(prev => ({ ...prev, envChoice: v }));
+                      }}
+                    >
+                      {v}
+                    </span>
+                  );
+                })}
+              </div>
+              <label>Bearer token</label>
+              <input
+                id={`${p}tokenInput`}
+                type="password"
+                placeholder="Paste token"
+                value={state.token}
+                onChange={(e) => {
+                  const token = e.target.value;
+                  const info = decodeJwt(token.trim());
+                  const inferredEnv = inferEnvironmentFromIssuer(info?.iss);
+                  setState(prev => ({ ...prev, token, jwtInfo: info, envChoice: inferredEnv || prev.envChoice, apiError: "" }));
+                }}
+              />
+              <div className="hint">JWT info will display after validation.</div>
+              <pre id={`${p}jwtInfo`} className={`compact ${state.jwtInfo && (Number(state.jwtInfo.exp) * 1000) < Date.now() ? "jwtExpired" : ""}`} style={{ marginTop: "8px" }}>
+                {state.jwtInfo ? JSON.stringify(formatJwtInfo(state.jwtInfo), null, 2) : ""}
+              </pre>
+              <div id={`${p}tokenError`} className="hint" style={{ marginTop: "8px", color: "#b00020" }}>
+                {state.apiError}
+              </div>
+            </>
+          ),
+          validate: () => {
+            if (!state.envChoice) return "Please select an environment.";
+            if (!state.token.trim()) return "Bearer token is required.";
+            const info = decodeJwt(state.token.trim());
+            if (!info) return "Token does not appear to be a JWT (expected 3 segments).";
+            setState(prev => ({ ...prev, jwtInfo: info, apiError: "" }));
+            return "";
+          }
+        });
+
+        pushStep({
+          id: "dupCheck",
+          title: "Duplicate field results",
+          required: true,
+          isApplicable: () => state.testApi && state.duplicateCheck,
+          summary: () => state.duplicateChecked ? "Results ready" : "Running check...",
+          render: (p) => (
+            <>
+              <label>Duplicate check results</label>
+              <div className="hint">Fetched existing fields and ran fuzzy matching. Scores range from 0–1, where 1 is an exact match.</div>
+              <div id={`${p}dupResults`} className="hint" style={{ marginTop: "8px" }}>
+                {state.duplicateChecked ? (
+                  state.duplicateMatches.length ? (
+                    <table className="dupTable">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Label</th>
+                          <th>Name score</th>
+                          <th>Label score</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {state.duplicateMatches.map((m, idx) => (
+                          <tr key={`${m.name}-${idx}`}>
+                            <td>{m.name}</td>
+                            <td>{m.labelName}</td>
+                            <td>{m.nameScore}</td>
+                            <td>{m.labelScore}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : state.duplicateBest ? (
+                    <table className="dupTable">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Label</th>
+                          <th>Best score</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>{state.duplicateBest.name}</td>
+                          <td>{state.duplicateBest.labelName}</td>
+                          <td>{state.duplicateBest.score}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  ) : (
+                    "No potential duplicates found."
+                  )
+                ) : "Checking for potential duplicates..."}
+              </div>
+              <div className="row" style={{ marginTop: "8px" }}>
+                <button type="button" id={`${p}dupBackBtn`} onClick={() => {
+                  if (editingIndex !== null) {
+                    setCurrentIndex(Math.max(0, currentIndex - 1));
+                    setEditingIndex(null);
+                    return;
+                  }
+                  goBack();
+                }}>Back</button>
+                <button
+                  type="button"
+                  className="primary"
+                  id={`${p}dupNextBtn`}
+                  disabled={!state.duplicateChecked}
+                  onClick={() => goNext()}
+                >
+                  Continue to API
+                </button>
+              </div>
+            </>
+          )
+        });
+
+        pushStep({
+          id: "confirmSend",
+          title: "Send API request to create the field?",
+          required: true,
+          isApplicable: () => state.testApi,
+          summary: () => "Choose whether to send.",
+          render: () => (
+            <div className="panel" style={{ marginTop: "10px" }}>
+              <div style={{ fontWeight: 700 }}>Payload to send</div>
+              <pre>{JSON.stringify(buildPayload(state), null, 2)}</pre>
+            </div>
+          )
+        });
+
+        pushStep({
+          id: "postSend",
+          title: "Response",
+          required: false,
+          isApplicable: () => state.testApi && (state.apiResponseStatus !== null || state.apiError),
+          summary: () => state.apiResponseStatus ? `Status ${state.apiResponseStatus}` : "Response",
+          render: (p) => (
+            <>
+              <div className="panel">
+                <div style={{ fontWeight: 700 }}>API response</div>
+                <pre className={`compact ${state.apiResponseStatus && state.apiResponseStatus >= 200 && state.apiResponseStatus < 300 ? "apiSuccess" : "apiFail"}`}>
+                  {state.apiResponseStatus
+                    ? formatApiResponse(state.apiResponseText) || ""
+                    : (state.apiError || "Try again.")}
+                </pre>
+                {state.apiResponseStatus ? (
+                  <div className="responseSummary">
+                    <div>Status: {state.apiResponseStatus}</div>
+                    <div>Module: {state.module || "(unknown)"}</div>
+                    <div>Name: {state.backendName || "(blank)"}</div>
+                    <div>Label name: {state.frontendName || "(blank)"}</div>
+                    {state.apiAlbertId ? <div>Albert ID: {state.apiAlbertId}</div> : null}
+                  </div>
+                ) : null}
+                <div className="row" style={{ marginTop: "10px" }}>
+                  <button type="button" id={`${p}restartBtn`} onClick={() => resetAll()}>Restart</button>
+                </div>
+              </div>
+              {state.apiResponseStatus && state.apiResponseStatus >= 200 && state.apiResponseStatus < 300 ? (
+                state.fieldType === "list" ? (
+                  <div className="panel" style={{ marginTop: "10px" }}>
+                    <label style={{ marginTop: "8px", fontWeight: 700 }}>Add list options?</label>
+                    <select
+                      id={`${p}addListSel`}
+                      value={state.addListOptions ? "yes" : "no"}
+                      onChange={(e) => {
+                        const enabled = e.target.value === "yes";
+                        setState(prev => ({
+                          ...prev,
+                          addListOptions: enabled,
+                          listOptionResponses: enabled ? prev.listOptionResponses : [],
+                          listOptionStarted: enabled ? prev.listOptionStarted : false,
+                          listOptionInProgress: false,
+                          listOptionProcessed: enabled ? prev.listOptionProcessed : 0,
+                          listOptionTotal: enabled ? prev.listOptionTotal : 0,
+                          listOptionSuccess: enabled ? prev.listOptionSuccess : 0,
+                          listOptionFailures: enabled ? prev.listOptionFailures : []
+                        }));
+                        setSuppressScrollOnce(true);
+                      }}
+                    >
+                      <option value="no">No</option>
+                      <option value="yes">Yes</option>
+                    </select>
+                    <div id={`${p}listOptionsInputRow`} style={{ marginTop: "10px", display: state.addListOptions ? "" : "none" }}>
+                      <label>List option names (comma-separated)</label>
+                      <input
+                        id={`${p}listOptionsInput`}
+                        type="text"
+                        value={state.listOptionsRaw}
+                        onChange={(e) => setState(prev => ({ ...prev, listOptionsRaw: e.target.value }))}
+                      />
+                      <button
+                        id={`${p}sendListOptionsBtn`}
+                        type="button"
+                        style={{ marginTop: "10px" }}
+                        disabled={state.listOptionInProgress}
+                        onClick={async () => {
+                          const names = [...new Set(parseCommaList(state.listOptionsRaw))];
+                          const listTypeName = state.backendName.trim();
+                          const listCategory = state.listType;
+                          const envChoice = state.envChoice;
+                          const token = state.token.trim();
+
+                          setState(prev => ({
+                            ...prev,
+                            listOptionsRaw: names.join(", "),
+                            listOptionResponses: [],
+                            listOptionStarted: true,
+                            listOptionInProgress: false,
+                            listOptionProcessed: 0,
+                            listOptionTotal: names.length,
+                            listOptionSuccess: 0,
+                            listOptionFailures: []
+                          }));
+
+                          if (!names.length) {
+                            setState(prev => ({
+                              ...prev,
+                              listOptionFailures: [{ optionName: "(none)", status: "error", message: "No list options provided." }]
+                            }));
+                            return;
+                          }
+
+                          setState(prev => ({ ...prev, listOptionInProgress: true }));
+
+                          const responses = [];
+                          let processed = 0;
+                          let success = 0;
+                          const failures = [];
+                          for (const name of names) {
+                            const res = await sendListOption(envChoice, token, name, listTypeName, listCategory);
+                            const ok = res.status >= 200 && res.status <= 299;
+                            if (ok) {
+                              success += 1;
+                            } else {
+                              failures.push({
+                                optionName: name,
+                                status: res.status,
+                                message: extractErrorMessages(res.text)
+                              });
+                            }
+                            processed += 1;
+                            responses.push({ name, status: res.status, text: res.text, albertId: res.albertId, ok });
+                            setState(prev => ({
+                              ...prev,
+                              listOptionResponses: [...responses],
+                              listOptionProcessed: processed,
+                              listOptionSuccess: success,
+                              listOptionFailures: [...failures]
+                            }));
+                          }
+                          setState(prev => ({ ...prev, listOptionInProgress: false }));
+                        }}
+                      >
+                        {state.listOptionInProgress ? "Sending..." : "Send list options"}
+                      </button>
+                    </div>
+                    <div id={`${p}listOptionResults`} className="hint" style={{ marginTop: "8px" }}>
+                      {state.listOptionStarted ? (
+                        <>
+                          <div className={`statusBanner ${state.listOptionInProgress ? "statusNeutral" : (state.listOptionFailures.length ? "statusBad" : "statusGood")}`}>
+                            Migrated {state.listOptionProcessed} / {state.listOptionTotal} options. Succeeded: {state.listOptionSuccess}. Failures: {state.listOptionFailures.length}.
+                          </div>
+                          {state.listOptionResponses.length ? (
+                            <table className="dupTable">
+                              <thead>
+                                <tr>
+                                  <th>Option</th>
+                                  <th>Status</th>
+                                  <th>Result</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {state.listOptionResponses.map((r, idx) => (
+                                  <tr key={`${r.name}-${idx}`}>
+                                    <td>{r.name}</td>
+                                    <td>{r.status}</td>
+                                    <td>{r.ok ? (r.albertId ? r.albertId : "ID not returned") : extractErrorMessages(r.text)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : null}
+                          {state.listOptionFailures.length ? (
+                            <table className="dupTable">
+                              <thead>
+                                <tr>
+                                  <th>Failed option</th>
+                                  <th>Status</th>
+                                  <th>Error</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {state.listOptionFailures.map((item, idx) => (
+                                  <tr key={`${item.optionName}-${idx}`}>
+                                    <td>{item.optionName}</td>
+                                    <td>{item.status}</td>
+                                    <td>{item.message}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          ) : null}
+                        </>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="panel" style={{ marginTop: "10px" }}>
+                    <div style={{ fontWeight: 700 }}>Would you like to create another field?</div>
+                    <div className="row" style={{ marginTop: "10px" }}>
+                      <button type="button">No</button>
+                      <button type="button" className="primary" onClick={() => resetAll()}>Yes</button>
+                    </div>
+                  </div>
+                )
+              ) : (
+                <div className="hint" style={{ marginTop: "8px" }}>Try again.</div>
+              )}
+              <div id={`${p}postSendEnd`}></div>
+            </>
+          )
+        });
+
+        return activeSteps.filter(s => s.isApplicable());
+      }, [state, currentIndex, editingIndex]);
+
+      const activeSteps = steps;
+      const currentStepId = activeSteps[currentIndex]?.id || null;
+      const testApiStepIndex = activeSteps.findIndex(s => s.id === "testApi");
+
+      function collapseEditingIfNeeded(stepId) {
+        if (editingIndex === null) return false;
+        const idx = activeSteps.findIndex(s => s.id === stepId);
+        if (idx >= 0 && currentIndex > idx) {
+          setEditingIndex(null);
+          return true;
+        }
+        return false;
+      }
+
+      async function runDuplicateCheck(forceCheck = false) {
+        setState(prev => ({
+          ...prev,
+          duplicateMatches: [],
+          duplicateBest: null,
+          duplicateChecked: false
+        }));
+        if (!forceCheck && !state.duplicateCheck) return;
+        const lookup = await fetchCustomFields(state.envChoice, state.token.trim());
+        if (lookup.status === 401 || lookup.status === 403) {
+          setState(prev => ({ ...prev, apiError: "Bearer token is invalid. Please re-enter." }));
+          jumpTo("envToken");
+          return;
+        }
+        const items = lookup.items || [];
+        const targetService = (MODULES_DICT[state.module] || "").toLowerCase();
+        const scopedItems = targetService
+          ? items.filter(item => String(item?.service || "").toLowerCase() === targetService)
+          : items;
+        let bestScore = 0;
+        let bestItem = null;
+        const matches = [];
+        for (const item of scopedItems) {
+          const name = item.name || "";
+          const labelName = item.labelName || "";
+          const nameScore = similarity(state.backendName.trim(), name);
+          const labelScore = similarity(state.frontendName.trim(), labelName);
+          const itemBest = Math.max(nameScore, labelScore);
+          if (itemBest > bestScore) {
+            bestScore = itemBest;
+            bestItem = { name, labelName };
+          }
+          if (nameScore >= FUZZY_THRESHOLD || labelScore >= FUZZY_THRESHOLD) {
+            matches.push({
+              name,
+              labelName,
+              nameScore: nameScore.toFixed(2),
+              labelScore: labelScore.toFixed(2)
+            });
+          }
+        }
+        if (matches.length) {
+          setState(prev => ({ ...prev, duplicateMatches: matches, duplicateChecked: true }));
+        } else if (bestItem) {
+          setState(prev => ({
+            ...prev,
+            duplicateBest: {
+              score: bestScore.toFixed(2),
+              name: bestItem.name,
+              labelName: bestItem.labelName
+            },
+            duplicateChecked: true
+          }));
+        } else {
+          setState(prev => ({ ...prev, duplicateChecked: true }));
+        }
+      }
+
+      function jumpTo(id) {
+        const idx = activeSteps.findIndex(s => s.id === id);
+        if (idx >= 0) {
+          if (idx < currentIndex) setEditingIndex(idx);
+          else {
+            setCurrentIndex(idx);
+            setEditingIndex(null);
+          }
+        }
+        setPayloadHold(false);
+      }
+
+      async function goNext(options = {}) {
+        const { skipValidation = false } = options;
+        const step = activeSteps[currentIndex];
+        if (!skipValidation) {
+          const error = step.validate ? step.validate() : "";
+          if (error) {
+            setStepError(error);
+            return;
+          }
+        }
+        setStepError("");
+        if (step.onNext) {
+          await step.onNext();
+        }
+        if (haltAdvanceOnceRef.current) {
+          haltAdvanceOnceRef.current = false;
+          return;
+        }
+        if (step && step.id === "testApi" && state.testApi) {
+          setSuppressPayloadHoldOnce(true);
+        }
+        if (currentIndex < activeSteps.length - 1) setCurrentIndex(currentIndex + 1);
+        setEditingIndex(null);
+        setPayloadHold(false);
+      }
+
+      function goBack() {
+        if (currentIndex > 0) setCurrentIndex(currentIndex - 1);
+        setEditingIndex(null);
+        setPayloadHold(false);
+      }
+
+      function resetAll() {
+        setState(defaults());
+        setCurrentIndex(0);
+        setEditingIndex(null);
+        setPayloadHold(false);
+        setLastRenderWasLast(false);
+        setStepError("");
+      }
+
+      useEffect(() => {
+        const isLast = currentIndex === activeSteps.length - 1;
+        if (lastRenderWasLast && !isLast && !suppressPayloadHoldOnce) {
+          setPayloadHold(true);
+        }
+        if (isLast) setPayloadHold(false);
+        if (suppressPayloadHoldOnce) setSuppressPayloadHoldOnce(false);
+        setLastRenderWasLast(isLast);
+      }, [currentIndex, activeSteps.length, lastRenderWasLast, suppressPayloadHoldOnce]);
+
+      useEffect(() => {
+        if (!suppressScrollOnce) {
+          const isPostSend = currentStepId === "postSend";
+          const scrollTargetId = isPostSend
+            ? "cur_postSendEnd"
+            : (editingIndex !== null ? `edit_${editingIndex}_editingStep` : "currentStep");
+          const currentEl = document.getElementById(scrollTargetId);
+          if (currentEl) {
+            requestAnimationFrame(() => {
+              currentEl.scrollIntoView({ behavior: "smooth", block: isPostSend ? "end" : "start" });
+            });
+          }
+        } else {
+          setSuppressScrollOnce(false);
+        }
+
+        if (focusNextIdRef.current) {
+          const target = document.getElementById(focusNextIdRef.current);
+          if (target) {
+            requestAnimationFrame(() => {
+              target.focus();
+              if (target.select) target.select();
+            });
+          }
+          focusNextIdRef.current = null;
+        }
+      }, [currentIndex, editingIndex, currentStepId, suppressScrollOnce]);
+
+      const showPayload = (currentIndex === activeSteps.length - 1 || payloadHold) && activeSteps[currentIndex]?.id === "testApi";
+
+      return (
+        <>
+          <div className="topbar">
+            <h1 style={{ margin: 0 }}>Custom Field Creator (React)</h1>
+            <button className="right" id="restartBtn" type="button" onClick={() => resetAll()}>Restart</button>
+          </div>
+          <p className="muted">
+            Use this Custom Field API Builder to create a new custom field in your environment. Answer the questions below to create the payload for the API.
+          </p>
+
+          <div id="steps">
+            {activeSteps.map((s, idx) => {
+              if (idx < currentIndex) {
+                const isEditing = editingIndex === idx;
+                const editPrefix = `edit_${idx}_`;
+                return isEditing ? (
+                  <div className="step" data-step-index={idx} data-step-id={s.id} id={`${editPrefix}editingStep`} key={s.id}>
+                    <div className="stepHeader">
+                      <div className="num">{idx + 1}.</div>
+                      <div className="title">{s.title}</div>
+                      <div className="status">editing</div>
+                      <button type="button" className="collapseBtn" onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingIndex(null);
+                      }}>Collapse</button>
+                    </div>
+                    <div className="editArea">
+                      {s.render(editPrefix)}
+                      <div id={`${editPrefix}stepError`} className="hint" style={{ color: "#b00020" }}></div>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    className="step clickable"
+                    data-step-index={idx}
+                    data-step-id={s.id}
+                    data-jump={s.id}
+                    key={s.id}
+                    onClick={() => jumpTo(s.id)}
+                  >
+                    <div className="stepHeader">
+                      <div className="num">{idx + 1}.</div>
+                      <div className="title">{s.title}</div>
+                      <div className="status">✓</div>
+                    </div>
+                    <div className="summary">{s.summary()}</div>
+                  </div>
+                );
+              }
+              if (idx === currentIndex) {
+                const isTestApi = s.id === "testApi";
+                const isDupCheck = s.id === "dupCheck";
+                const isEnvToken = s.id === "envToken";
+                const isConfirmSend = s.id === "confirmSend";
+                const isPostSend = s.id === "postSend";
+                const hideRequirementStatus = (testApiStepIndex >= 0 && idx >= testApiStepIndex) || s.showRequirement === false;
+                const backLabel = isTestApi
+                  ? "No"
+                  : isEnvToken
+                    ? "Continue to API"
+                    : "Back";
+                const nextLabel = isTestApi
+                  ? "Yes"
+                  : isEnvToken
+                    ? "Check for potential duplicate fields"
+                  : isConfirmSend
+                    ? "Send request"
+                    : (s.id === "categories" && !state.categoriesRaw.trim())
+                      ? "Skip"
+                      : (currentIndex === activeSteps.length - 1 ? "Finish" : "Next");
+                const showFooter = !isDupCheck && !isPostSend;
+                return (
+                  <div className="step" data-step-index={idx} data-step-id={s.id} id="currentStep" key={s.id}>
+                    <div className="stepHeader">
+                      <div className="num">{idx + 1}.</div>
+                      <div className="title">{s.title}</div>
+                      {hideRequirementStatus ? null : (
+                        <div className="status">{s.required ? "required" : "optional"}</div>
+                      )}
+                    </div>
+                    <div className="editArea">
+                      {s.render("cur_")}
+                      <div id="cur_stepError" className="hint" style={{ color: "#b00020" }}>{stepError}</div>
+                      {showFooter ? (
+                        <div className="row" style={{ marginTop: "12px" }}>
+                          <button
+                            type="button"
+                            id="cur_backBtn"
+                            disabled={currentIndex === 0 && !isTestApi}
+                            onClick={async () => {
+                              if (s.id === "testApi") {
+                                setState(prev => ({ ...prev, testApi: false }));
+                                setEditingIndex(null);
+                                setPayloadHold(false);
+                                setStepError("");
+                                return;
+                              }
+                              if (s.id === "envToken") {
+                                const error = s.validate ? s.validate() : "";
+                                if (error) {
+                                  setStepError(error);
+                                  return;
+                                }
+                                setStepError("");
+                                setState(prev => ({
+                                  ...prev,
+                                  duplicateCheck: false,
+                                  duplicateMatches: [],
+                                  duplicateBest: null,
+                                  duplicateChecked: false
+                                }));
+                                setEditingIndex(null);
+                                setPayloadHold(false);
+                                setCurrentIndex(prev => Math.min(prev + 1, activeSteps.length - 1));
+                                return;
+                              }
+                              goBack();
+                            }}
+                          >
+                            {backLabel}
+                          </button>
+                          <button
+                            type="button"
+                            className="primary"
+                            id="cur_nextBtn"
+                            onClick={async () => {
+                              if (s.id === "testApi") {
+                                setState(prev => ({ ...prev, testApi: true }));
+                                setEditingIndex(null);
+                                setPayloadHold(false);
+                                setStepError("");
+                                setCurrentIndex(prev => prev + 1);
+                                return;
+                              }
+                              if (s.id === "envToken") {
+                                const error = s.validate ? s.validate() : "";
+                                if (error) {
+                                  setStepError(error);
+                                  return;
+                                }
+                                setStepError("");
+                                setState(prev => ({
+                                  ...prev,
+                                  duplicateCheck: true
+                                }));
+                                setEditingIndex(null);
+                                setPayloadHold(false);
+                                setCurrentIndex(prev => prev + 1);
+                                await runDuplicateCheck(true);
+                                return;
+                              }
+                              if (s.id === "confirmSend") {
+                                setState(prev => ({
+                                  ...prev,
+                                  apiError: "",
+                                  apiResponseStatus: null,
+                                  apiResponseText: "",
+                                  apiAlbertId: null
+                                }));
+                                const payload = buildPayload(state);
+                                const resp = await sendCreateField(state.envChoice, state.token.trim(), payload);
+                                if (resp.status === 401 || resp.status === 403) {
+                                  setState(prev => ({ ...prev, apiError: "Bearer token is invalid. Please re-enter." }));
+                                  jumpTo("envToken");
+                                  return;
+                                }
+                                setState(prev => ({
+                                  ...prev,
+                                  apiResponseStatus: resp.status,
+                                  apiResponseText: resp.text,
+                                  apiAlbertId: resp.albertId || null
+                                }));
+                                setEditingIndex(currentIndex);
+                                setCurrentIndex(prev => prev + 1);
+                                return;
+                              }
+                              goNext();
+                            }}
+                          >
+                            {nextLabel}
+                          </button>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              }
+              return null;
+            })}
+          </div>
+
+          <div className={`panel ${showPayload ? "" : "hidden"}`} id="payloadPanel">
+            <div className="row" style={{ alignItems: "center" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700 }}>Payload preview</div>
+                <div className="hint">Payload preview (updates as you answer questions).</div>
+              </div>
+              <button
+                id="copyPayloadBtn"
+                type="button"
+                onClick={async () => {
+                  const payload = buildPayload(state);
+                  try {
+                    await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+                  } catch {}
+                }}
+              >
+                Copy payload
+              </button>
+            </div>
+            <div id="payloadMeta" className="hint" style={{ marginTop: "8px" }}>
+              {[state.envChoice ? `Environment: ${state.envChoice}` : null,
+                state.jwtInfo ? `Bearer token: ${JSON.stringify(formatJwtInfo(state.jwtInfo))}` : null]
+                .filter(Boolean)
+                .join(" • ")}
+            </div>
+            <pre id="payloadOut">{JSON.stringify(buildPayload(state), null, 2)}</pre>
+          </div>
+        </>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<CustomFieldCreatorApp />);
+  </script>
+</body>
+</html>
